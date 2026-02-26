@@ -1,7 +1,7 @@
-use async_trait::async_trait;
-use datafusion::prelude::{SessionContext, ParquetReadOptions};
-use datafusion::error::Result;
 use super::DataSource;
+use async_trait::async_trait;
+use datafusion::error::Result;
+use datafusion::prelude::{ParquetReadOptions, SessionContext};
 
 pub struct ParquetDataSource {
     name: String,
@@ -21,7 +21,8 @@ impl DataSource for ParquetDataSource {
     }
 
     async fn register(&self, ctx: &SessionContext) -> Result<()> {
-        ctx.register_parquet(&self.name, &self.path, ParquetReadOptions::default()).await?;
+        ctx.register_parquet(&self.name, &self.path, ParquetReadOptions::default())
+            .await?;
         Ok(())
     }
 }

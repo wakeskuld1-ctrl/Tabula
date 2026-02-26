@@ -19,6 +19,22 @@ metadata/
 └── target/                  # [构建产物] 编译生成的可执行文件
 ```
 
+## 发布前清理范围
+
+> **[2026-02-26] 变更原因：补齐发布前清理口径；变更目的：保证可删除/迁移项一致、可追溯**
+
+| 路径 | 处理 | 依据 |
+| :--- | :--- | :--- |
+| `dist.zip` | 删除 | 由打包流程可再生成，非源码必要文件 |
+| `winlibs.zip` | 删除 | 未被代码或文档引用，属于可再获取依赖 |
+| `my_data.json` | 删除并忽略 | 运行时自动生成的本地数据文件 |
+| `ARCHITECTURE_PLAN.md` | 迁移至 `docs/` | 设计类文档统一归档 |
+| `doc/` | 删除 | 与 `docs/` 重复，统一以 `docs/` 为准 |
+| `test_reports/` | 迁移至 `docs/` | 测试报告归档至文档目录 |
+| `federated_query_engine/metrics_final.json` | 删除并忽略 | 性能报告中间产物，可再生成 |
+| `federated_query_engine/performance_report.html` | 删除并忽略 | 性能报告产物，归档后可再生成 |
+| `federated_query_engine/STRESS_TEST_REPORT.md` | 迁移至 `docs/` | 压测报告归档至文档目录 |
+
 ## 开发环境配置 (Windows)
 
 ### 1. 安装 Rust 工具链

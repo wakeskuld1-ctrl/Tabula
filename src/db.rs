@@ -1,7 +1,7 @@
+use anyhow::Result;
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
-use anyhow::Result;
 
 /// 一个简单的键值对数据库
 pub struct SimpleDb {

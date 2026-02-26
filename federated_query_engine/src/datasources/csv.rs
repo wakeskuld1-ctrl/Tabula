@@ -1,7 +1,7 @@
-use async_trait::async_trait;
-use datafusion::prelude::{SessionContext, CsvReadOptions};
-use datafusion::error::Result;
 use super::DataSource;
+use async_trait::async_trait;
+use datafusion::error::Result;
+use datafusion::prelude::{CsvReadOptions, SessionContext};
 
 pub struct CsvDataSource {
     name: String,
@@ -21,6 +21,7 @@ impl DataSource for CsvDataSource {
     }
 
     async fn register(&self, ctx: &SessionContext) -> Result<()> {
-        ctx.register_csv(&self.name, &self.path, CsvReadOptions::new()).await
+        ctx.register_csv(&self.name, &self.path, CsvReadOptions::new())
+            .await
     }
 }

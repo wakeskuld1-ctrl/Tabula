@@ -1,6 +1,6 @@
 use wasm_bindgen::prelude::*;
-use web_sys::{console, HtmlCanvasElement, CanvasRenderingContext2d};
 use wasm_bindgen::JsCast;
+use web_sys::{console, CanvasRenderingContext2d, HtmlCanvasElement};
 
 #[wasm_bindgen]
 pub struct GridState {
@@ -83,11 +83,10 @@ impl GridState {
         }
     }
 
-
     pub fn set_cell(&mut self, row: u32, col: u32, value: String) {
         let r = row as usize;
         let c = col as usize;
-        
+
         // Ensure rows exist
         if r >= self.data.len() {
             let old_len = self.data.len();
@@ -103,10 +102,10 @@ impl GridState {
                 self.data[i].resize(self.cols as usize, String::new());
             }
         }
-        
+
         // Ensure columns exist for this row
         if c >= self.data[r].len() {
-             self.data[r].resize(c + 1, String::new());
+            self.data[r].resize(c + 1, String::new());
         }
 
         self.data[r][c] = value;
@@ -147,7 +146,7 @@ impl GridState {
     pub fn append_rows(&mut self, count: u32) {
         let old_rows = self.rows;
         self.rows += count;
-        
+
         // Extend data vector
         let new_rows_vec = vec![vec![String::new(); self.cols as usize]; count as usize];
         self.data.extend(new_rows_vec);
@@ -155,9 +154,10 @@ impl GridState {
         // Update visible_rows
         // Append new row indices
         for r in old_rows..self.rows {
-             if r > 0 { // Should always be true if we are appending
-                 self.visible_rows.push(r as usize);
-             }
+            if r > 0 {
+                // Should always be true if we are appending
+                self.visible_rows.push(r as usize);
+            }
         }
     }
 
@@ -179,18 +179,30 @@ impl GridState {
     pub fn sort_by_column(&mut self, col: u32, ascending: bool) {
         let c = col as usize;
         let data_ref = &self.data;
-        
+
         self.visible_rows.sort_by(|&a, &b| {
-            let val_a = if a < data_ref.len() && c < data_ref[a].len() { &data_ref[a][c] } else { "" };
-            let val_b = if b < data_ref.len() && c < data_ref[b].len() { &data_ref[b][c] } else { "" };
-            
+            let val_a = if a < data_ref.len() && c < data_ref[a].len() {
+                &data_ref[a][c]
+            } else {
+                ""
+            };
+            let val_b = if b < data_ref.len() && c < data_ref[b].len() {
+                &data_ref[b][c]
+            } else {
+                ""
+            };
+
             // Try numeric sort first
             if let (Ok(num_a), Ok(num_b)) = (val_a.parse::<f64>(), val_b.parse::<f64>()) {
-                 if ascending {
-                     num_a.partial_cmp(&num_b).unwrap_or(std::cmp::Ordering::Equal)
-                 } else {
-                     num_b.partial_cmp(&num_a).unwrap_or(std::cmp::Ordering::Equal)
-                 }
+                if ascending {
+                    num_a
+                        .partial_cmp(&num_b)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                } else {
+                    num_b
+                        .partial_cmp(&num_a)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                }
             } else {
                 // String sort
                 if ascending {
@@ -200,20 +212,39 @@ impl GridState {
                 }
             }
         });
-        console::log_1(&format!("Sorted col {} {}", col, if ascending { "asc" } else { "desc" }).into());
+        console::log_1(
+            &format!(
+                "Sorted col {} {}",
+                col,
+                if ascending { "asc" } else { "desc" }
+            )
+            .into(),
+        );
     }
 
     pub fn filter_by_value(&mut self, col: u32, value: String) {
         let c = col as usize;
         self.visible_rows.clear();
-        
+
         for r in 1..self.data.len() {
-             let cell_val = if r < self.data.len() && c < self.data[r].len() { &self.data[r][c] } else { "" };
-             if value.is_empty() || cell_val.contains(&value) {
-                 self.visible_rows.push(r);
-             }
+            let cell_val = if r < self.data.len() && c < self.data[r].len() {
+                &self.data[r][c]
+            } else {
+                ""
+            };
+            if value.is_empty() || cell_val.contains(&value) {
+                self.visible_rows.push(r);
+            }
         }
-        console::log_1(&format!("Filtered col {} by '{}'. Found {} rows.", col, value, self.visible_rows.len()).into());
+        console::log_1(
+            &format!(
+                "Filtered col {} by '{}'. Found {} rows.",
+                col,
+                value,
+                self.visible_rows.len()
+            )
+            .into(),
+        );
     }
 
     pub fn handle_click(&mut self, x: f64, y: f64) -> bool {
@@ -266,15 +297,23 @@ impl GridState {
         // Data Click
         // Calculate effective y relative to data start
         let data_y = y - self.cell_height + self.scroll_top;
-        if data_y < 0.0 { return false; }
+        if data_y < 0.0 {
+            return false;
+        }
 
         let row_idx_in_visible = (data_y / self.cell_height).floor() as usize;
-        
+
         if row_idx_in_visible < self.visible_rows.len() {
             let row = self.visible_rows[row_idx_in_visible] as u32;
             self.selected_row = Some(row);
             self.selected_col = Some(col);
-            console::log_1(&format!("Clicked cell: {}, {} (Visible Index: {})", row, col, row_idx_in_visible).into());
+            console::log_1(
+                &format!(
+                    "Clicked cell: {}, {} (Visible Index: {})",
+                    row, col, row_idx_in_visible
+                )
+                .into(),
+            );
             true
         } else {
             false
@@ -302,7 +341,8 @@ impl GridState {
     pub fn render(&self, canvas_id: &str) -> Result<(), JsValue> {
         let window = web_sys::window().expect("no global `window` exists");
         let document = window.document().expect("should have a document on window");
-        let canvas = document.get_element_by_id(canvas_id)
+        let canvas = document
+            .get_element_by_id(canvas_id)
             .ok_or_else(|| JsValue::from_str("Canvas not found"))?
             .dyn_into::<HtmlCanvasElement>()?;
 
@@ -319,7 +359,9 @@ impl GridState {
         let logical_width = width / dpr;
         let logical_height = height / dpr;
 
-        context.set_transform(dpr, 0.0, 0.0, dpr, 0.0, 0.0).unwrap_or(());
+        context
+            .set_transform(dpr, 0.0, 0.0, dpr, 0.0, 0.0)
+            .unwrap_or(());
 
         // Clear canvas
         context.set_fill_style_str("white");
@@ -336,7 +378,16 @@ impl GridState {
         let end_idx = (start_idx + visible_count).min(self.visible_rows.len());
 
         // Helper to draw a cell
-        let draw_cell = |r: u32, c: u32, x: f64, y: f64, val: &str, is_header: bool, width: f64, is_sort: bool, is_filter: bool| -> Result<(), JsValue> {
+        let draw_cell = |r: u32,
+                         c: u32,
+                         x: f64,
+                         y: f64,
+                         val: &str,
+                         is_header: bool,
+                         width: f64,
+                         is_sort: bool,
+                         is_filter: bool|
+         -> Result<(), JsValue> {
             // Background
             if is_header {
                 context.set_fill_style_str("#f8f9fa"); // Light gray header
@@ -345,8 +396,8 @@ impl GridState {
                 context.set_fill_style_str("#ffffff"); // White
                 context.fill_rect(x, y, width, self.cell_height);
             } else {
-                 context.set_fill_style_str("#fafafa"); // Very light gray zebra
-                 context.fill_rect(x, y, width, self.cell_height);
+                context.set_fill_style_str("#fafafa"); // Very light gray zebra
+                context.fill_rect(x, y, width, self.cell_height);
             }
 
             // Border
@@ -354,13 +405,13 @@ impl GridState {
             context.stroke_rect(x, y, width, self.cell_height);
 
             // Selection
-             if let (Some(sr), Some(sc)) = (self.selected_row, self.selected_col) {
+            if let (Some(sr), Some(sc)) = (self.selected_row, self.selected_col) {
                 if r == sr && c == sc {
                     context.set_stroke_style_str("#4a90e2"); // Blue border
                     context.set_line_width(2.0);
                     context.stroke_rect(x + 1.0, y + 1.0, width - 2.0, self.cell_height - 2.0);
                     context.set_line_width(1.0); // Reset
-                    
+
                     context.set_fill_style_str("rgba(74, 144, 226, 0.1)");
                     context.fill_rect(x + 1.0, y + 1.0, width - 2.0, self.cell_height - 2.0);
                 }
@@ -379,18 +430,18 @@ impl GridState {
 
             // Header Icon
             if is_header {
-                 // Sort Icon
-                 if is_sort {
-                     context.set_fill_style_str("#666");
-                     let icon = if self.sort_asc { "▲" } else { "▼" };
-                     context.fill_text(icon, x + width - 35.0, y + 20.0)?;
-                 }
+                // Sort Icon
+                if is_sort {
+                    context.set_fill_style_str("#666");
+                    let icon = if self.sort_asc { "▲" } else { "▼" };
+                    context.fill_text(icon, x + width - 35.0, y + 20.0)?;
+                }
 
-                 // Filter Icon
-                 context.set_fill_style_str(if is_filter { "#4a90e2" } else { "#999" });
-                 context.fill_text("▼", x + width - 15.0, y + 20.0)?;
+                // Filter Icon
+                context.set_fill_style_str(if is_filter { "#4a90e2" } else { "#999" });
+                context.fill_text("▼", x + width - 15.0, y + 20.0)?;
             }
-            
+
             context.restore(); // Restore state (remove clip)
             Ok(())
         };
@@ -401,20 +452,31 @@ impl GridState {
         for idx in start_idx..end_idx {
             let r_data_idx = self.visible_rows[idx];
             let mut x = 0.0;
-            
+
             for c in 0..self.cols {
                 let col_width = self.get_col_width(c as usize);
                 let y = (idx as f64 * self.cell_height) - self.scroll_top + header_height;
-                
-                let val = if r_data_idx < self.data.len() && (c as usize) < self.data[r_data_idx].len() {
-                    &self.data[r_data_idx][c as usize]
-                } else {
-                    ""
-                };
+
+                let val =
+                    if r_data_idx < self.data.len() && (c as usize) < self.data[r_data_idx].len() {
+                        &self.data[r_data_idx][c as usize]
+                    } else {
+                        ""
+                    };
 
                 // Only draw if visible (y + height > 0 && y < canvas_height)
                 if y < height && y + self.cell_height > 0.0 {
-                    draw_cell(r_data_idx as u32, c, x, y, val, false, col_width, false, false)?;
+                    draw_cell(
+                        r_data_idx as u32,
+                        c,
+                        x,
+                        y,
+                        val,
+                        false,
+                        col_width,
+                        false,
+                        false,
+                    )?;
                 }
                 x += col_width;
             }
@@ -424,7 +486,7 @@ impl GridState {
         // Clear header area first to cover scrolled data
         context.set_fill_style_str("white");
         context.fill_rect(0.0, 0.0, logical_width, header_height);
-        
+
         let mut x = 0.0;
         for c in 0..self.cols {
             let col_width = self.get_col_width(c as usize);
@@ -434,14 +496,14 @@ impl GridState {
             } else {
                 ""
             };
-            
+
             let is_sort_col = self.sort_col == Some(c);
             let is_filter_col = self.active_filter_col == Some(c);
-            
+
             draw_cell(0, c, x, y, val, true, col_width, is_sort_col, is_filter_col)?;
             x += col_width;
         }
-        
+
         Ok(())
     }
 }

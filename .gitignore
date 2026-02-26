@@ -34,5 +34,12 @@ Thumbs.db
 *.xlsx
 *.log
 
+# [2026-02-26] 变更原因：补齐发布前清理忽略项; 变更目的：避免可再生成产物入库
+/dist.zip
+/winlibs.zip
+/my_data.json
+/federated_query_engine/metrics_final.json
+/federated_query_engine/performance_report.html
+
 # Allow keeping specific test data if needed (example)
 # !/federated_query_engine/data/sample_schema.json

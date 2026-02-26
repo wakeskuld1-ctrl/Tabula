@@ -1,6 +1,6 @@
 use datafusion::error::{DataFusionError, Result};
-use datafusion::prelude::Expr;
 use datafusion::logical_expr::expr::InList;
+use datafusion::prelude::Expr;
 use datafusion::scalar::ScalarValue;
 use std::fmt::Debug;
 
@@ -19,7 +19,7 @@ pub trait SqlDialect: Send + Sync + Debug {
     fn expr_to_sql(&self, expr: &Expr) -> Result<String>;
 
     /// Generates a paginated SQL query.
-    /// 
+    ///
     /// # Arguments
     /// * `select_cols` - The columns to select (e.g., "id, name" or "*").
     /// * `table_name` - The name of the table.
@@ -52,7 +52,9 @@ impl SqlDialect for CsvDialect {
     }
 
     fn expr_to_sql(&self, _expr: &Expr) -> Result<String> {
-        Err(DataFusionError::Execution("SQL generation not supported for CSV".to_string()))
+        Err(DataFusionError::Execution(
+            "SQL generation not supported for CSV".to_string(),
+        ))
     }
 
     fn generate_pagination_sql(
@@ -82,7 +84,9 @@ impl SqlDialect for ExcelDialect {
     }
 
     fn expr_to_sql(&self, _expr: &Expr) -> Result<String> {
-        Err(DataFusionError::Execution("SQL generation not supported for Excel".to_string()))
+        Err(DataFusionError::Execution(
+            "SQL generation not supported for Excel".to_string(),
+        ))
     }
 
     fn generate_pagination_sql(
@@ -119,48 +123,67 @@ impl SqlDialect for SqliteDialect {
                 let left_sql = self.expr_to_sql(left)?;
                 let right_sql = self.expr_to_sql(right)?;
                 Ok(format!("({} {} {})", left_sql, op, right_sql))
-            },
+            }
             Expr::Column(col) => Ok(self.quote_identifier(&col.name)),
-            Expr::Literal(scalar_value) => {
-                match scalar_value {
-                    ScalarValue::Utf8(Some(s)) => Ok(format!("'{}'", s.replace("'", "''"))),
-                    ScalarValue::Int64(Some(v)) => Ok(v.to_string()),
-                    ScalarValue::Float64(Some(v)) => Ok(v.to_string()),
-                    ScalarValue::Boolean(Some(v)) => Ok(if *v { "1".to_string() } else { "0".to_string() }),
-                    _ => Err(DataFusionError::Execution(format!("Unsupported literal: {:?}", scalar_value))), 
+            Expr::Literal(scalar_value) => match scalar_value {
+                ScalarValue::Utf8(Some(s)) => Ok(format!("'{}'", s.replace("'", "''"))),
+                ScalarValue::Int64(Some(v)) => Ok(v.to_string()),
+                ScalarValue::Float64(Some(v)) => Ok(v.to_string()),
+                ScalarValue::Boolean(Some(v)) => {
+                    Ok(if *v { "1".to_string() } else { "0".to_string() })
                 }
+                _ => Err(DataFusionError::Execution(format!(
+                    "Unsupported literal: {:?}",
+                    scalar_value
+                ))),
             },
-            Expr::Like(datafusion::logical_expr::Like { expr, pattern, negated, escape_char: _, case_insensitive }) => {
+            Expr::Like(datafusion::logical_expr::Like {
+                expr,
+                pattern,
+                negated,
+                escape_char: _,
+                case_insensitive,
+            }) => {
                 if *case_insensitive {
-                     return Err(DataFusionError::Execution("Case-insensitive LIKE not supported for SQLite yet".to_string()));
+                    return Err(DataFusionError::Execution(
+                        "Case-insensitive LIKE not supported for SQLite yet".to_string(),
+                    ));
                 }
                 let expr_sql = self.expr_to_sql(expr)?;
                 let pattern_sql = self.expr_to_sql(pattern)?;
                 let op = if *negated { "NOT LIKE" } else { "LIKE" };
                 Ok(format!("{} {} {}", expr_sql, op, pattern_sql))
-            },
+            }
             Expr::IsNull(expr) => {
                 let expr_sql = self.expr_to_sql(expr)?;
                 Ok(format!("{} IS NULL", expr_sql))
-            },
+            }
             Expr::IsNotNull(expr) => {
                 let expr_sql = self.expr_to_sql(expr)?;
                 Ok(format!("{} IS NOT NULL", expr_sql))
-            },
-            Expr::InList(InList { expr, list, negated }) => {
+            }
+            Expr::InList(InList {
+                expr,
+                list,
+                negated,
+            }) => {
                 let expr_sql = self.expr_to_sql(expr)?;
-                let list_sql = list.iter()
+                let list_sql = list
+                    .iter()
                     .map(|e| self.expr_to_sql(e))
                     .collect::<Result<Vec<_>>>()?
                     .join(", ");
                 let op = if *negated { "NOT IN" } else { "IN" };
                 Ok(format!("{} {} ({})", expr_sql, op, list_sql))
-            },
+            }
             Expr::Not(expr) => {
                 let expr_sql = self.expr_to_sql(expr)?;
                 Ok(format!("NOT ({})", expr_sql))
-            },
-            _ => Err(DataFusionError::Execution(format!("Unsupported expression for SQLite: {:?}", expr))),
+            }
+            _ => Err(DataFusionError::Execution(format!(
+                "Unsupported expression for SQLite: {:?}",
+                expr
+            ))),
         }
     }
 
@@ -194,7 +217,9 @@ pub struct OracleDialect {
 impl OracleDialect {
     #[allow(dead_code)]
     pub fn new(use_legacy_pagination: bool) -> Self {
-        Self { use_legacy_pagination }
+        Self {
+            use_legacy_pagination,
+        }
     }
 }
 
@@ -213,7 +238,7 @@ impl SqlDialect for OracleDialect {
                 let left_sql = self.expr_to_sql(left)?;
                 let right_sql = self.expr_to_sql(right)?;
                 Ok(format!("({} {} {})", left_sql, op, right_sql))
-            },
+            }
             Expr::Column(col) => Ok(self.quote_identifier(&col.name)),
             Expr::Literal(scalar_value) => {
                 match scalar_value {
@@ -221,41 +246,62 @@ impl SqlDialect for OracleDialect {
                     ScalarValue::Int64(Some(v)) => Ok(v.to_string()),
                     ScalarValue::Float64(Some(v)) => Ok(v.to_string()),
                     // Oracle doesn't have BOOLEAN type in SQL (only PL/SQL), usually uses 1/0 or 'Y'/'N'
-                    ScalarValue::Boolean(Some(v)) => Ok(if *v { "1".to_string() } else { "0".to_string() }), 
-                    _ => Err(DataFusionError::Execution(format!("Unsupported literal: {:?}", scalar_value))), 
+                    ScalarValue::Boolean(Some(v)) => {
+                        Ok(if *v { "1".to_string() } else { "0".to_string() })
+                    }
+                    _ => Err(DataFusionError::Execution(format!(
+                        "Unsupported literal: {:?}",
+                        scalar_value
+                    ))),
                 }
-            },
-            Expr::Like(datafusion::logical_expr::Like { expr, pattern, negated, escape_char: _, case_insensitive }) => {
+            }
+            Expr::Like(datafusion::logical_expr::Like {
+                expr,
+                pattern,
+                negated,
+                escape_char: _,
+                case_insensitive,
+            }) => {
                 if *case_insensitive {
-                     return Err(DataFusionError::Execution("Case-insensitive LIKE not supported for Oracle yet".to_string()));
+                    return Err(DataFusionError::Execution(
+                        "Case-insensitive LIKE not supported for Oracle yet".to_string(),
+                    ));
                 }
                 let expr_sql = self.expr_to_sql(expr)?;
                 let pattern_sql = self.expr_to_sql(pattern)?;
                 let op = if *negated { "NOT LIKE" } else { "LIKE" };
                 Ok(format!("{} {} {}", expr_sql, op, pattern_sql))
-            },
+            }
             Expr::IsNull(expr) => {
                 let expr_sql = self.expr_to_sql(expr)?;
                 Ok(format!("{} IS NULL", expr_sql))
-            },
+            }
             Expr::IsNotNull(expr) => {
                 let expr_sql = self.expr_to_sql(expr)?;
                 Ok(format!("{} IS NOT NULL", expr_sql))
-            },
-            Expr::InList(InList { expr, list, negated }) => {
+            }
+            Expr::InList(InList {
+                expr,
+                list,
+                negated,
+            }) => {
                 let expr_sql = self.expr_to_sql(expr)?;
-                let list_sql = list.iter()
+                let list_sql = list
+                    .iter()
                     .map(|e| self.expr_to_sql(e))
                     .collect::<Result<Vec<_>>>()?
                     .join(", ");
                 let op = if *negated { "NOT IN" } else { "IN" };
                 Ok(format!("{} {} ({})", expr_sql, op, list_sql))
-            },
+            }
             Expr::Not(expr) => {
                 let expr_sql = self.expr_to_sql(expr)?;
                 Ok(format!("NOT ({})", expr_sql))
-            },
-            _ => Err(DataFusionError::Execution(format!("Unsupported expression for Oracle: {:?}", expr))),
+            }
+            _ => Err(DataFusionError::Execution(format!(
+                "Unsupported expression for Oracle: {:?}",
+                expr
+            ))),
         }
     }
 
@@ -267,7 +313,9 @@ impl SqlDialect for OracleDialect {
         limit: usize,
         offset: usize,
     ) -> String {
-        let where_part = where_clause.map(|w| format!("WHERE {}", w)).unwrap_or_default();
+        let where_part = where_clause
+            .map(|w| format!("WHERE {}", w))
+            .unwrap_or_default();
 
         if self.use_legacy_pagination {
             // Oracle 11g - ROWNUM strategy
@@ -277,7 +325,7 @@ impl SqlDialect for OracleDialect {
             // ) WHERE rnum > start
             let start = offset;
             let end = offset + limit;
-            
+
             format!(
                 "SELECT {} FROM (
                     SELECT t.*, ROWNUM rnum FROM (SELECT {} FROM {} {}) t

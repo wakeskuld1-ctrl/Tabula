@@ -22,7 +22,7 @@ pub struct MetadataStore {
 impl MetadataStore {
     pub fn new(db_path: &str) -> Result<Self> {
         let conn = Connection::open(db_path)?;
-        
+
         // 1. Create table with new columns if not exists
         conn.execute(
             "CREATE TABLE IF NOT EXISTS tables_metadata (
@@ -45,11 +45,20 @@ impl MetadataStore {
         // 2. Migration: Try to add columns if they don't exist for backward compatibility
         // Ignoring errors if columns already exist
         let _ = conn.execute("ALTER TABLE tables_metadata ADD COLUMN catalog_name TEXT NOT NULL DEFAULT 'datafusion'", []);
-        let _ = conn.execute("ALTER TABLE tables_metadata ADD COLUMN schema_name TEXT NOT NULL DEFAULT 'public'", []);
+        let _ = conn.execute(
+            "ALTER TABLE tables_metadata ADD COLUMN schema_name TEXT NOT NULL DEFAULT 'public'",
+            [],
+        );
         let _ = conn.execute("ALTER TABLE tables_metadata ADD COLUMN sheet_name TEXT", []);
-        let _ = conn.execute("ALTER TABLE tables_metadata ADD COLUMN schema_json TEXT", []);
+        let _ = conn.execute(
+            "ALTER TABLE tables_metadata ADD COLUMN schema_json TEXT",
+            [],
+        );
         let _ = conn.execute("ALTER TABLE tables_metadata ADD COLUMN stats_json TEXT", []);
-        let _ = conn.execute("ALTER TABLE tables_metadata ADD COLUMN indexes_json TEXT", []);
+        let _ = conn.execute(
+            "ALTER TABLE tables_metadata ADD COLUMN indexes_json TEXT",
+            [],
+        );
 
         Ok(Self {
             conn: Arc::new(Mutex::new(conn)),
@@ -64,9 +73,9 @@ impl MetadataStore {
             (
                 &meta.catalog_name,
                 &meta.schema_name,
-                &meta.table_name, 
-                &meta.file_path, 
-                &meta.source_type, 
+                &meta.table_name,
+                &meta.file_path,
+                &meta.source_type,
                 &meta.sheet_name,
                 &meta.schema_json,
                 &meta.stats_json,
@@ -79,7 +88,7 @@ impl MetadataStore {
     pub fn list_tables(&self) -> Result<Vec<TableMetadata>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare("SELECT catalog_name, schema_name, table_name, file_path, source_type, sheet_name, schema_json, stats_json, indexes_json FROM tables_metadata")?;
-        
+
         let rows = stmt.query_map([], |row| {
             Ok(TableMetadata {
                 catalog_name: row.get(0)?,
@@ -101,7 +110,15 @@ impl MetadataStore {
         Ok(tables)
     }
 
-    pub fn add_table(&self, catalog: &str, schema: &str, table: &str, file_path: &str, source_type: &str, sheet_name: Option<String>) -> Result<()> {
+    pub fn add_table(
+        &self,
+        catalog: &str,
+        schema: &str,
+        table: &str,
+        file_path: &str,
+        source_type: &str,
+        sheet_name: Option<String>,
+    ) -> Result<()> {
         self.save_table(&TableMetadata {
             catalog_name: catalog.to_string(),
             schema_name: schema.to_string(),
@@ -124,14 +141,19 @@ impl MetadataStore {
         Ok(count)
     }
 
-    pub fn get_table(&self, catalog: &str, schema: &str, table: &str) -> Result<Option<TableMetadata>> {
+    pub fn get_table(
+        &self,
+        catalog: &str,
+        schema: &str,
+        table: &str,
+    ) -> Result<Option<TableMetadata>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
             "SELECT catalog_name, schema_name, table_name, file_path, source_type, sheet_name, schema_json, stats_json, indexes_json 
              FROM tables_metadata 
              WHERE catalog_name = ?1 AND schema_name = ?2 AND table_name = ?3"
         )?;
-        
+
         let mut rows = stmt.query_map((catalog, schema, table), |row| {
             Ok(TableMetadata {
                 catalog_name: row.get(0)?,

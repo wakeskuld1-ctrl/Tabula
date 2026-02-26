@@ -1,11 +1,11 @@
-use std::path::{Path, PathBuf};
-use std::fs::{self, File};
-use std::sync::{RwLock, OnceLock, Arc};
-use std::sync::atomic::{AtomicBool, AtomicU64, AtomicU32, AtomicUsize, Ordering};
-use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
-use std::process::Command;
 use serde::Serialize;
+use std::collections::HashMap;
+use std::fs::{self, File};
+use std::hash::{Hash, Hasher};
+use std::path::{Path, PathBuf};
+use std::process::Command;
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicUsize, Ordering};
+use std::sync::{Arc, OnceLock, RwLock};
 
 // Volatility Tracking
 // Tracks table update frequency to bypass cache for volatile tables.
@@ -42,12 +42,12 @@ fn get_volatility_tracker() -> &'static VolatilityTracker {
 
 // Constants for Volatility Logic
 const VOLATILITY_WINDOW_MS: u64 = 10_000; // 10 seconds window
-const VOLATILITY_THRESHOLD: u32 = 3;      // 3 updates in window -> Volatile
+const VOLATILITY_THRESHOLD: u32 = 3; // 3 updates in window -> Volatile
 const VOLATILITY_COOLDOWN_MS: u64 = 30_000; // 30 seconds cooldown
 
 // Time-To-Idle (TTI) Constants
-const PROBATION_TTL_MS: u64 = 30_000;    // 30 seconds for low-access items (< 2 hits)
-const PROTECTED_TTL_MS: u64 = 300_000;   // 5 minutes for high-access items (>= 2 hits)
+const PROBATION_TTL_MS: u64 = 30_000; // 30 seconds for low-access items (< 2 hits)
+const PROTECTED_TTL_MS: u64 = 300_000; // 5 minutes for high-access items (>= 2 hits)
 const MAINTENANCE_INTERVAL_MS: u64 = 10_000; // Check every 10 seconds
 
 #[derive(Debug, PartialEq)]
@@ -56,15 +56,15 @@ pub enum CachePolicy {
     Bypass,
 }
 
-use datafusion::prelude::*;
-use datafusion::dataframe::DataFrameWriteOptions;
-use datafusion::error::{Result, DataFusionError};
+use crate::datasources::excel::ExcelDataSource;
+use datafusion::arrow::compute::concat_batches;
 use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::arrow::record_batch::RecordBatch;
+use datafusion::dataframe::DataFrameWriteOptions;
+use datafusion::error::{DataFusionError, Result};
 use datafusion::parquet::arrow::ArrowWriter;
 use datafusion::parquet::file::properties::WriterProperties;
-use datafusion::arrow::compute::concat_batches;
-use crate::datasources::excel::ExcelDataSource;
+use datafusion::prelude::*;
 
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::watch;
@@ -98,7 +98,7 @@ impl FlightGuard {
     pub fn mark_completed(&self) {
         let _ = self.sender.send(FlightStatus::Completed);
     }
-    
+
     pub fn mark_failed(&self) {
         let _ = self.sender.send(FlightStatus::Failed);
     }
@@ -194,7 +194,8 @@ impl MetricsRegistry {
 
     pub fn record_l2_hit(&self, latency_us: u64) {
         self.l2_hits.fetch_add(1, Ordering::Relaxed);
-        self.l2_read_latency_us.fetch_add(latency_us, Ordering::Relaxed);
+        self.l2_read_latency_us
+            .fetch_add(latency_us, Ordering::Relaxed);
     }
 
     pub fn record_l2_miss(&self) {
@@ -202,13 +203,14 @@ impl MetricsRegistry {
     }
 
     pub fn record_lock_wait(&self, latency_us: u64) {
-        self.l2_lock_wait_us.fetch_add(latency_us, Ordering::Relaxed);
+        self.l2_lock_wait_us
+            .fetch_add(latency_us, Ordering::Relaxed);
     }
 
     pub fn record_l2_eviction(&self) {
         self.l2_eviction_count.fetch_add(1, Ordering::Relaxed);
     }
-    
+
     pub fn record_l1_eviction(&self) {
         self.l1_eviction_count.fetch_add(1, Ordering::Relaxed);
     }
@@ -222,7 +224,8 @@ impl MetricsRegistry {
     }
 
     pub fn record_l1_io_latency(&self, latency_us: u64) {
-        self.l1_io_latency_us.fetch_add(latency_us, Ordering::Relaxed);
+        self.l1_io_latency_us
+            .fetch_add(latency_us, Ordering::Relaxed);
     }
 
     pub fn record_l0_request(&self) {
@@ -230,12 +233,14 @@ impl MetricsRegistry {
     }
 
     pub fn record_l0_latency(&self, latency_us: u64) {
-        self.l0_exec_latency_us.fetch_add(latency_us, Ordering::Relaxed);
+        self.l0_exec_latency_us
+            .fetch_add(latency_us, Ordering::Relaxed);
     }
 
     #[allow(dead_code)]
     pub fn record_query_latency(&self, latency_us: u64) {
-        self.total_query_latency_us.fetch_add(latency_us, Ordering::Relaxed);
+        self.total_query_latency_us
+            .fetch_add(latency_us, Ordering::Relaxed);
     }
 }
 
@@ -314,11 +319,14 @@ pub struct L1CacheEntry {
 
 impl L1CacheEntry {
     pub fn new(file_path: PathBuf, size: u64, cost: u64, priority: f32) -> Self {
-        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64;
         let static_score = calculate_static_score(cost, size as usize, priority);
         let now_sec = (now.saturating_sub(EPOCH_START) as f32) / 1000.0;
         let score = static_score + now_sec;
-        
+
         Self {
             file_path,
             size,
@@ -338,7 +346,7 @@ impl L1CacheEntry {
         self.last_access.store(now, Ordering::Relaxed);
         self.access_count.fetch_add(1, Ordering::Relaxed);
     }
-    
+
     pub fn get_score(&self) -> f32 {
         f32::from_bits(self.score.load(Ordering::Relaxed))
     }
@@ -348,12 +356,12 @@ impl L1CacheEntry {
 #[allow(dead_code)]
 pub struct L2CacheEntry {
     pub data: Vec<RecordBatch>,
-    pub cost: u64, // ms
-    pub size: usize, // bytes
-    pub priority: f32, // default 1.0
+    pub cost: u64,              // ms
+    pub size: usize,            // bytes
+    pub priority: f32,          // default 1.0
     pub last_access: AtomicU64, // ms timestamp
     pub access_count: AtomicU32,
-    pub score: AtomicU32, // Absolute score (f32 bits)
+    pub score: AtomicU32,  // Absolute score (f32 bits)
     pub static_score: f32, // (ln C - ln S) + 4.6 P
 }
 
@@ -363,17 +371,20 @@ const EPOCH_START: u64 = 1_735_689_600_000;
 impl L2CacheEntry {
     pub fn new(data: Vec<RecordBatch>, cost: u64, priority: f32) -> Self {
         let size: usize = data.iter().map(|b| b.get_array_memory_size()).sum();
-        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
-        
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64;
+
         // Use unified calculation
         let static_score = calculate_static_score(cost, size, priority);
-        
+
         // Use relative time in seconds to fit in f32 with good precision
         // If we use raw millis, f32 precision is too low for recent updates.
         let now_sec = (now.saturating_sub(EPOCH_START) as f32) / 1000.0;
-        
+
         let score = static_score + now_sec;
-        
+
         Self {
             data,
             cost,
@@ -385,14 +396,14 @@ impl L2CacheEntry {
             static_score,
         }
     }
-    
+
     pub fn update_access(&self, now: u64) {
         // Use relative time in seconds
         let now_sec = (now.saturating_sub(EPOCH_START) as f32) / 1000.0;
         // Update score: replace old time component with new one
         // score = static_score + now_sec
         let new_score = self.static_score + now_sec;
-        
+
         self.score.store(new_score.to_bits(), Ordering::Relaxed);
         self.last_access.store(now, Ordering::Relaxed);
         self.access_count.fetch_add(1, Ordering::Relaxed);
@@ -419,7 +430,7 @@ fn get_l2_cache() -> &'static ShardedL2Cache {
 
 pub struct CacheManager;
 
-use tokio::sync::{Semaphore, OwnedSemaphorePermit};
+use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 
 static BYPASS_SEMAPHORE: OnceLock<Arc<Semaphore>> = OnceLock::new();
 
@@ -459,20 +470,27 @@ impl CacheManager {
     }
 
     pub async fn acquire_bypass_permit() -> OwnedSemaphorePermit {
-        get_bypass_semaphore().clone().acquire_owned().await.unwrap()
+        get_bypass_semaphore()
+            .clone()
+            .acquire_owned()
+            .await
+            .unwrap()
     }
 
     /// Check table volatility and determine cache policy.
     /// Returns CachePolicy::Bypass if table is updating too frequently.
     /// Optimized with Read-Before-Write lock to reduce contention.
-    /// 
+    ///
     /// `current_mtime` can be:
     /// - File Modification Time (SQLite/Excel)
     /// - Oracle SCN (System Change Number)
     /// - MySQL/PG Last Update Timestamp
     pub fn check_volatility(table_name: &str, current_mtime: u64) -> CachePolicy {
-        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
-        
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64;
+
         // 1. Fast Path: Read Lock
         {
             let tracker = get_volatility_tracker().read().unwrap();
@@ -481,12 +499,12 @@ impl CacheManager {
                 if stats.last_known_mtime == current_mtime {
                     // Special case: Cooldown check might need write, but we can check condition first
                     if stats.is_volatile {
-                         if now - stats.cooldown_start > VOLATILITY_COOLDOWN_MS {
-                             // Need to upgrade to write lock to reset
-                         } else {
-                             // Still volatile and in cooldown
-                             return CachePolicy::Bypass;
-                         }
+                        if now - stats.cooldown_start > VOLATILITY_COOLDOWN_MS {
+                            // Need to upgrade to write lock to reset
+                        } else {
+                            // Still volatile and in cooldown
+                            return CachePolicy::Bypass;
+                        }
                     } else {
                         // Stable and not volatile
                         return CachePolicy::UseCache;
@@ -497,36 +515,44 @@ impl CacheManager {
 
         // 2. Slow Path: Write Lock
         let mut tracker = get_volatility_tracker().write().unwrap();
-        
-        let stats = tracker.entry(table_name.to_string()).or_insert_with(|| VolatilityStats::new(now, current_mtime));
+
+        let stats = tracker
+            .entry(table_name.to_string())
+            .or_insert_with(|| VolatilityStats::new(now, current_mtime));
 
         // ... (rest of the logic is same as before)
         if stats.is_volatile {
             if now - stats.cooldown_start > VOLATILITY_COOLDOWN_MS {
                 // Cooldown over, check if stable
                 if current_mtime == stats.last_known_mtime {
-                     // Still same mtime, looks stable. Reset.
-                     println!("[CacheManager] Table '{}' stabilized. Resuming cache.", table_name);
-                     stats.is_volatile = false;
-                     stats.update_count = 0;
-                     stats.last_known_mtime = current_mtime;
-                     stats.last_change_ts = now;
-                     return CachePolicy::UseCache;
+                    // Still same mtime, looks stable. Reset.
+                    println!(
+                        "[CacheManager] Table '{}' stabilized. Resuming cache.",
+                        table_name
+                    );
+                    stats.is_volatile = false;
+                    stats.update_count = 0;
+                    stats.last_known_mtime = current_mtime;
+                    stats.last_change_ts = now;
+                    return CachePolicy::UseCache;
                 } else {
                     // Changed again during cooldown?
                     // If mtime changed since last check, extend cooldown
                     if current_mtime != stats.last_known_mtime {
-                         println!("[CacheManager] Table '{}' still changing. Extending cooldown.", table_name);
-                         stats.last_known_mtime = current_mtime;
-                         stats.cooldown_start = now;
+                        println!(
+                            "[CacheManager] Table '{}' still changing. Extending cooldown.",
+                            table_name
+                        );
+                        stats.last_known_mtime = current_mtime;
+                        stats.cooldown_start = now;
                     }
                     return CachePolicy::Bypass;
                 }
             } else {
                 // In cooldown period, update mtime if changed to keep tracking
                 if current_mtime != stats.last_known_mtime {
-                     stats.last_known_mtime = current_mtime;
-                     stats.cooldown_start = now; // Extend cooldown
+                    stats.last_known_mtime = current_mtime;
+                    stats.cooldown_start = now; // Extend cooldown
                 }
                 return CachePolicy::Bypass;
             }
@@ -536,16 +562,19 @@ impl CacheManager {
         if current_mtime != stats.last_known_mtime {
             // Data changed
             let time_since_last_change = now.saturating_sub(stats.last_change_ts);
-            
+
             if time_since_last_change < VOLATILITY_WINDOW_MS {
                 stats.update_count += 1;
-                println!("[CacheManager] Table '{}' updated. Count: {}/{}", table_name, stats.update_count, VOLATILITY_THRESHOLD);
-                
+                println!(
+                    "[CacheManager] Table '{}' updated. Count: {}/{}",
+                    table_name, stats.update_count, VOLATILITY_THRESHOLD
+                );
+
                 if stats.update_count >= VOLATILITY_THRESHOLD {
                     println!("[CacheManager] Table '{}' is VOLATILE (Frequent Updates). Bypassing cache for {}s.", table_name, VOLATILITY_COOLDOWN_MS / 1000);
                     stats.is_volatile = true;
                     stats.cooldown_start = now;
-                    
+
                     // Update state
                     stats.last_known_mtime = current_mtime;
                     stats.last_change_ts = now;
@@ -555,7 +584,7 @@ impl CacheManager {
                 // Reset window
                 stats.update_count = 1;
             }
-            
+
             // Update last known state
             stats.last_known_mtime = current_mtime;
             stats.last_change_ts = now;
@@ -566,17 +595,22 @@ impl CacheManager {
 
     /// Generates a cache key based on the table name, query parameters, projection, and source version (mtime/SCN).
     /// Key format: MD5(table_name + "|" + params + "|" + projection + "|" + mtime)
-    pub fn generate_key(table_name: &str, params: Option<&str>, projection: Option<&Vec<usize>>, source_mtime: u64) -> String {
+    pub fn generate_key(
+        table_name: &str,
+        params: Option<&str>,
+        projection: Option<&Vec<usize>>,
+        source_mtime: u64,
+    ) -> String {
         let mut context = md5::Context::new();
         context.consume(table_name.as_bytes());
         context.consume(b"|");
-        
+
         // Canonicalize params (SQL conditions) to avoid cache duplication
         if let Some(p) = params {
             let canonical_params = Self::canonicalize_sql(p);
             context.consume(canonical_params.as_bytes());
         }
-        
+
         context.consume(b"|");
         if let Some(proj) = projection {
             for idx in proj {
@@ -585,7 +619,7 @@ impl CacheManager {
         }
         context.consume(b"|");
         context.consume(source_mtime.to_le_bytes()); // Include mtime in hash
-        let digest = context.finalize(); 
+        let digest = context.finalize();
         format!("{:x}", digest)
     }
 
@@ -594,12 +628,12 @@ impl CacheManager {
     ///       "b=2 AND a=1" -> "a=1 AND b=2"
     fn canonicalize_sql(sql: &str) -> String {
         let s = sql.trim();
-        
+
         // 1. Handle Parentheses Wrapper: (A) -> A
         // Only if parentheses wrap the ENTIRE string
         if s.starts_with('(') && s.ends_with(')') {
             if Self::is_balanced_wrapper(s) {
-                return Self::canonicalize_sql(&s[1..s.len()-1]);
+                return Self::canonicalize_sql(&s[1..s.len() - 1]);
             }
         }
 
@@ -608,7 +642,8 @@ impl CacheManager {
         // E.g. "A AND B OR C AND D" is "(A AND B) OR (C AND D)"
         let or_parts = Self::split_ignore_nested(s, " OR ");
         if or_parts.len() > 1 {
-             let mut parts: Vec<String> = or_parts.into_iter()
+            let mut parts: Vec<String> = or_parts
+                .into_iter()
                 .map(|p| Self::canonicalize_sql(&p))
                 .collect();
             parts.sort();
@@ -618,10 +653,11 @@ impl CacheManager {
         // 3. Split by AND
         let and_parts = Self::split_ignore_nested(s, " AND ");
         if and_parts.len() > 1 {
-            let mut parts: Vec<String> = and_parts.into_iter()
+            let mut parts: Vec<String> = and_parts
+                .into_iter()
                 .map(|p| {
                     let c = Self::canonicalize_sql(&p);
-                    // If the sub-part contains OR (lower precedence), it must be wrapped 
+                    // If the sub-part contains OR (lower precedence), it must be wrapped
                     // to be safe inside an AND clause.
                     // E.g. If we have "(A OR B) AND C", split by AND gives "A OR B" and "C".
                     // "A OR B" must be wrapped back to "(A OR B)".
@@ -669,7 +705,7 @@ impl CacheManager {
         let mut start = 0;
         let s_lower = s.to_ascii_uppercase(); // For case-insensitive delimiter check
         let delim_len = delimiter.len();
-        
+
         // Iterate through string using indices
         // Note: Simple byte scan is safe for ASCII delimiters and parenthesis.
         // Multibyte chars won't match ASCII delimiters.
@@ -680,10 +716,12 @@ impl CacheManager {
             if b == b'(' {
                 depth += 1;
             } else if b == b')' {
-                if depth > 0 { depth -= 1; }
+                if depth > 0 {
+                    depth -= 1;
+                }
             } else if depth == 0 {
                 // Check delimiter
-                if i + delim_len <= s.len() && &s_lower[i..i+delim_len] == delimiter {
+                if i + delim_len <= s.len() && &s_lower[i..i + delim_len] == delimiter {
                     parts.push(s[start..i].to_string());
                     start = i + delim_len;
                     i += delim_len - 1; // Skip delimiter
@@ -697,7 +735,9 @@ impl CacheManager {
 
     /// Returns the path to the cache file for a given key.
     pub fn get_cache_file_path(key: &str) -> PathBuf {
-        Path::new("cache").join("l1").join(format!("{}.parquet", key))
+        Path::new("cache")
+            .join("l1")
+            .join(format!("{}.parquet", key))
     }
 
     /// Retrieve data from L2 Cache (Memory)
@@ -711,10 +751,13 @@ impl CacheManager {
         metrics.record_lock_wait(start.elapsed().as_micros() as u64);
 
         if let Some(entry) = shard.get(key) {
-            let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
+            let now = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_millis() as u64;
             // Update metadata atomically (interior mutability) without write lock
             entry.update_access(now);
-            
+
             metrics.record_l2_hit(start.elapsed().as_micros() as u64);
             Some(entry.data.clone())
         } else {
@@ -730,8 +773,11 @@ impl CacheManager {
             // Update L1 metadata access
             let cache = get_l1_cache_index().read().unwrap();
             if let Some(entry) = cache.get(key) {
-                 let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
-                 entry.update_access(now);
+                let now = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis() as u64;
+                entry.update_access(now);
             }
             get_metrics_registry().record_l1_hit();
             Some(path)
@@ -744,7 +790,7 @@ impl CacheManager {
     /// Singleflight: Join an existing flight or start a new one
     pub fn join_or_start_flight(key: String) -> FlightResult {
         let mut registry = get_inflight_registry().lock().unwrap();
-        
+
         if let Some(sender) = registry.get(&key) {
             // Flight exists -> Follower
             return FlightResult::IsFollower(sender.subscribe());
@@ -754,11 +800,8 @@ impl CacheManager {
         let (tx, _rx) = watch::channel(FlightStatus::InProgress);
         let sender = Arc::new(tx);
         registry.insert(key.clone(), sender.clone());
-        
-        FlightResult::IsLeader(FlightGuard {
-            key,
-            sender,
-        })
+
+        FlightResult::IsLeader(FlightGuard { key, sender })
     }
 
     /// Check if L1 entry should be promoted to L2 based on access frequency
@@ -781,7 +824,7 @@ impl CacheManager {
         let entry = L1CacheEntry::new(file_path, size, cost, 1.0);
         let mut cache = get_l1_cache_index().write().unwrap();
         cache.insert(key, entry);
-        
+
         // Trigger L1 eviction check (TODO)
     }
 
@@ -803,8 +846,10 @@ impl CacheManager {
             }
             _ => {}
         }
-        
-        println!("[CacheManager] Warning: Failed to get memory via PowerShell. Using fallback 1GB.");
+
+        println!(
+            "[CacheManager] Warning: Failed to get memory via PowerShell. Using fallback 1GB."
+        );
         1024 * 1024 * 1024 // Fallback 1GB
     }
 
@@ -820,16 +865,18 @@ impl CacheManager {
         match output {
             Ok(o) if o.status.success() => {
                 let stdout = String::from_utf8_lossy(&o.stdout);
-                // Output format: 
+                // Output format:
                 // Size           FreeSpace
                 // ----           ---------
                 // 699699032064   51763453952
-                
+
                 for line in stdout.lines() {
                     let parts: Vec<&str> = line.split_whitespace().collect();
                     if parts.len() == 2 {
                         // Try to parse both as u64
-                        if let (Ok(size), Ok(free)) = (parts[0].parse::<u64>(), parts[1].parse::<u64>()) {
+                        if let (Ok(size), Ok(free)) =
+                            (parts[0].parse::<u64>(), parts[1].parse::<u64>())
+                        {
                             // Valid line found
                             return (size, free);
                         }
@@ -838,7 +885,7 @@ impl CacheManager {
             }
             _ => {}
         }
-        
+
         (0, 0)
     }
 
@@ -853,9 +900,12 @@ impl CacheManager {
                     Ok(merged_batch) => {
                         // println!("[CacheManager] Compacted {} batches for key {}", batches.len(), key);
                         batches = vec![merged_batch];
-                    },
+                    }
                     Err(e) => {
-                        println!("[CacheManager] Warning: Failed to compact batches for key {}: {:?}", key, e);
+                        println!(
+                            "[CacheManager] Warning: Failed to compact batches for key {}: {:?}",
+                            key, e
+                        );
                     }
                 }
             }
@@ -873,14 +923,17 @@ impl CacheManager {
         {
             let cache = get_l2_cache();
             let mut shard = cache.get_shard(&key).write().unwrap();
-            
+
             // Create new entry
             let entry = L2CacheEntry::new(batches, cost_ms, 1.0);
             let entry_size = entry.size;
-            
+
             // Hard limit check for single item
             if entry_size > memory_limit {
-                println!("[CacheManager] Item too large to cache ({} > {}). Skipping L2.", entry_size, memory_limit);
+                println!(
+                    "[CacheManager] Item too large to cache ({} > {}). Skipping L2.",
+                    entry_size, memory_limit
+                );
                 return;
             }
 
@@ -892,17 +945,23 @@ impl CacheManager {
         // If limit exceeded, spawn background task.
         // We check IS_EVICTING to avoid spawning too many tasks.
         if !IS_EVICTING.load(Ordering::Relaxed) {
-             let current_usage = GLOBAL_MEMORY_USAGE.load(Ordering::Relaxed);
-             if current_usage > memory_limit {
-                 // Try to set flag
-                 if IS_EVICTING.compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed).is_ok() {
-                     println!("[CacheManager] Triggering Background Eviction (Usage: {} / Limit: {})", current_usage, memory_limit);
-                     tokio::spawn(async move {
-                         Self::run_eviction_cycle(memory_limit).await;
-                         IS_EVICTING.store(false, Ordering::Release);
-                     });
-                 }
-             }
+            let current_usage = GLOBAL_MEMORY_USAGE.load(Ordering::Relaxed);
+            if current_usage > memory_limit {
+                // Try to set flag
+                if IS_EVICTING
+                    .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
+                    .is_ok()
+                {
+                    println!(
+                        "[CacheManager] Triggering Background Eviction (Usage: {} / Limit: {})",
+                        current_usage, memory_limit
+                    );
+                    tokio::spawn(async move {
+                        Self::run_eviction_cycle(memory_limit).await;
+                        IS_EVICTING.store(false, Ordering::Release);
+                    });
+                }
+            }
         }
     }
 
@@ -912,8 +971,8 @@ impl CacheManager {
         // Pool configuration
         const EVICTION_POOL_SIZE: usize = 16;
         const SAMPLE_SIZE: usize = 5;
-        
-        // Eviction Pool: Stores (key, score). 
+
+        // Eviction Pool: Stores (key, score).
         let mut pool: Vec<(String, f32)> = Vec::with_capacity(EVICTION_POOL_SIZE);
         let mut shard_index = 0;
 
@@ -932,7 +991,8 @@ impl CacheManager {
                 if let Some(shard) = cache.shards.get(shard_index) {
                     let shard_lock = shard.read().unwrap();
                     if !shard_lock.is_empty() {
-                        let sample_keys: Vec<String> = shard_lock.keys().take(SAMPLE_SIZE).cloned().collect();
+                        let sample_keys: Vec<String> =
+                            shard_lock.keys().take(SAMPLE_SIZE).cloned().collect();
                         for key in sample_keys {
                             if let Some(entry) = shard_lock.get(&key) {
                                 let score = entry.get_score();
@@ -966,12 +1026,15 @@ impl CacheManager {
                 // Double check usage before evicting? No, we are in eviction loop.
                 // Try to remove from cache
                 if let Some(entry) = shard_lock.remove(&victim_key) {
-                     GLOBAL_MEMORY_USAGE.fetch_sub(entry.size, Ordering::Relaxed);
-                     evicted_something = true;
-                     let new_usage = GLOBAL_MEMORY_USAGE.load(Ordering::Relaxed);
-                     println!("[CacheManager] Evicted {} (Score: {:.2}). New Usage: {}", victim_key, score, new_usage);
-                     get_metrics_registry().record_l2_eviction();
-                     break; // Successfully evicted one, yield
+                    GLOBAL_MEMORY_USAGE.fetch_sub(entry.size, Ordering::Relaxed);
+                    evicted_something = true;
+                    let new_usage = GLOBAL_MEMORY_USAGE.load(Ordering::Relaxed);
+                    println!(
+                        "[CacheManager] Evicted {} (Score: {:.2}). New Usage: {}",
+                        victim_key, score, new_usage
+                    );
+                    get_metrics_registry().record_l2_eviction();
+                    break; // Successfully evicted one, yield
                 } else {
                     // Key might have been removed by someone else, try next in pool
                     continue;
@@ -990,19 +1053,22 @@ impl CacheManager {
             tokio::task::yield_now().await;
         }
     }
-    
+
     #[cfg(test)]
     pub async fn run_eviction_cycle_for_test(limit: usize) {
         Self::run_eviction_cycle(limit).await;
     }
 
-    
     /// Start Background Maintenance Task (TTI Eviction)
     pub fn start_maintenance_task() {
         tokio::spawn(async move {
-            println!("[CacheManager] Starting Background Maintenance Task (Interval: {} ms)", MAINTENANCE_INTERVAL_MS);
+            println!(
+                "[CacheManager] Starting Background Maintenance Task (Interval: {} ms)",
+                MAINTENANCE_INTERVAL_MS
+            );
             loop {
-                tokio::time::sleep(tokio::time::Duration::from_millis(MAINTENANCE_INTERVAL_MS)).await;
+                tokio::time::sleep(tokio::time::Duration::from_millis(MAINTENANCE_INTERVAL_MS))
+                    .await;
                 Self::run_ttl_eviction().await;
             }
         });
@@ -1013,7 +1079,10 @@ impl CacheManager {
     /// - Tier 2 (Protected): If access_count >= 2, eviction after 5m idle.
     /// Uses "Read-Lock Scan" + "Write-Lock Purge" for minimal blocking.
     async fn run_ttl_eviction() {
-        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64;
         let mut victims = Vec::new();
 
         // 1. Fast Scan with Read Lock (All Shards)
@@ -1046,20 +1115,27 @@ impl CacheManager {
         for key in victims {
             let shard = cache.get_shard(&key);
             let mut shard_lock = shard.write().unwrap();
-            
+
             // Re-check condition inside write lock
             if let Some(entry) = shard_lock.get(&key) {
                 let last_access = entry.last_access.load(Ordering::Relaxed);
                 let idle_time = now.saturating_sub(last_access);
                 let count = entry.access_count.load(Ordering::Relaxed);
-                
-                let ttl = if count < 2 { PROBATION_TTL_MS } else { PROTECTED_TTL_MS };
-                
+
+                let ttl = if count < 2 {
+                    PROBATION_TTL_MS
+                } else {
+                    PROTECTED_TTL_MS
+                };
+
                 if idle_time > ttl {
                     if let Some(removed) = shard_lock.remove(&key) {
-                         GLOBAL_MEMORY_USAGE.fetch_sub(removed.size, Ordering::Relaxed);
-                         println!("[CacheManager] TTI Eviction: {} (Idle: {}ms, Count: {})", key, idle_time, count);
-                         get_metrics_registry().record_l2_eviction();
+                        GLOBAL_MEMORY_USAGE.fetch_sub(removed.size, Ordering::Relaxed);
+                        println!(
+                            "[CacheManager] TTI Eviction: {} (Idle: {}ms, Count: {})",
+                            key, idle_time, count
+                        );
+                        get_metrics_registry().record_l2_eviction();
                     }
                 }
             }
@@ -1071,7 +1147,9 @@ impl CacheManager {
     /// Eviction Strategy: Use L1 Metadata Index (Score-based) instead of just Mtime.
     pub fn check_l1_disk_eviction() {
         let cache_dir = Path::new("cache").join("l1");
-        if !cache_dir.exists() { return; }
+        if !cache_dir.exists() {
+            return;
+        }
 
         // Determine drive letter
         let drive = match fs::canonicalize(&cache_dir) {
@@ -1079,12 +1157,12 @@ impl CacheManager {
                 let s = p.to_string_lossy().to_string();
                 if let Some(idx) = s.find(':') {
                     let start = if idx >= 1 { idx - 1 } else { 0 };
-                    s[start..idx+1].to_string()
+                    s[start..idx + 1].to_string()
                 } else {
-                    "C:".to_string() 
+                    "C:".to_string()
                 }
-            },
-            Err(_) => "C:".to_string()
+            }
+            Err(_) => "C:".to_string(),
         };
 
         let (total, free) = if let Some(usage) = *TEST_DISK_USAGE.read().unwrap() {
@@ -1092,64 +1170,80 @@ impl CacheManager {
         } else {
             Self::get_disk_usage_via_cmd(&drive)
         };
-        
-        if total == 0 { return; } 
+
+        if total == 0 {
+            return;
+        }
 
         let used_pct = 1.0 - (free as f64 / total as f64);
-        
+
         if used_pct > 0.80 {
-             println!("[CacheManager] Disk usage high ({:.2}%). Triggering L1 eviction...", used_pct * 100.0);
-             
-             // 1. Get Access to L1 Metadata Index
-             let mut cache_index = get_l1_cache_index().write().unwrap();
-             
-             if !cache_index.is_empty() {
-                 // Strategy: Evict items with lowest scores (Small size + High cost = Keep; Large size + Low cost = Evict)
-                 // Collect all keys to sort
-                 let mut entries: Vec<(String, f32)> = cache_index.iter()
+            println!(
+                "[CacheManager] Disk usage high ({:.2}%). Triggering L1 eviction...",
+                used_pct * 100.0
+            );
+
+            // 1. Get Access to L1 Metadata Index
+            let mut cache_index = get_l1_cache_index().write().unwrap();
+
+            if !cache_index.is_empty() {
+                // Strategy: Evict items with lowest scores (Small size + High cost = Keep; Large size + Low cost = Evict)
+                // Collect all keys to sort
+                let mut entries: Vec<(String, f32)> = cache_index
+                    .iter()
                     .map(|(k, v)| (k.clone(), v.get_score()))
                     .collect();
-                 
-                 // Sort by score ascending (lowest score first = victim)
-                 entries.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
-                 
-                 // Evict bottom 10%
-                 let count_to_evict = (entries.len() as f64 * 0.10).ceil() as usize;
-                 println!("[CacheManager] Evicting {} L1 files (Total: {})", count_to_evict, entries.len());
-                 
-                 for (key, score) in entries.iter().take(count_to_evict) {
-                     if let Some(entry) = cache_index.remove(key) {
-                         if let Err(e) = fs::remove_file(&entry.file_path) {
-                             eprintln!("[CacheManager] Failed to delete file {:?}: {:?}", entry.file_path, e);
-                         } else {
-                             println!("[CacheManager] Evicted L1 file: {:?} (Score: {:.2})", entry.file_path, score);
-                             get_metrics_registry().record_l1_eviction();
-                         }
-                     }
-                 }
-             } else {
-                 // Fallback: If index is empty (e.g. restart), use directory listing (Mtime based)
-                 // ... existing fallback code ...
-                 let mut files = Vec::new();
-                 if let Ok(entries) = fs::read_dir(&cache_dir) {
-                     for entry in entries.flatten() {
-                         let path = entry.path();
-                         if path.extension().map_or(false, |ext| ext == "parquet") {
-                             if let Ok(metadata) = fs::metadata(&path) {
-                                 if let Ok(modified) = metadata.modified() {
-                                     files.push((path, modified));
-                                 }
-                             }
-                         }
-                     }
-                 }
-                 files.sort_by(|a, b| a.1.cmp(&b.1));
-                 let files_to_delete = (files.len() as f64 * 0.10).ceil() as usize;
-                 for (path, _) in files.iter().take(files_to_delete) {
-                     let _ = fs::remove_file(path);
-                     get_metrics_registry().record_l1_eviction();
-                 }
-             }
+
+                // Sort by score ascending (lowest score first = victim)
+                entries.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+
+                // Evict bottom 10%
+                let count_to_evict = (entries.len() as f64 * 0.10).ceil() as usize;
+                println!(
+                    "[CacheManager] Evicting {} L1 files (Total: {})",
+                    count_to_evict,
+                    entries.len()
+                );
+
+                for (key, score) in entries.iter().take(count_to_evict) {
+                    if let Some(entry) = cache_index.remove(key) {
+                        if let Err(e) = fs::remove_file(&entry.file_path) {
+                            eprintln!(
+                                "[CacheManager] Failed to delete file {:?}: {:?}",
+                                entry.file_path, e
+                            );
+                        } else {
+                            println!(
+                                "[CacheManager] Evicted L1 file: {:?} (Score: {:.2})",
+                                entry.file_path, score
+                            );
+                            get_metrics_registry().record_l1_eviction();
+                        }
+                    }
+                }
+            } else {
+                // Fallback: If index is empty (e.g. restart), use directory listing (Mtime based)
+                // ... existing fallback code ...
+                let mut files = Vec::new();
+                if let Ok(entries) = fs::read_dir(&cache_dir) {
+                    for entry in entries.flatten() {
+                        let path = entry.path();
+                        if path.extension().map_or(false, |ext| ext == "parquet") {
+                            if let Ok(metadata) = fs::metadata(&path) {
+                                if let Ok(modified) = metadata.modified() {
+                                    files.push((path, modified));
+                                }
+                            }
+                        }
+                    }
+                }
+                files.sort_by(|a, b| a.1.cmp(&b.1));
+                let files_to_delete = (files.len() as f64 * 0.10).ceil() as usize;
+                for (path, _) in files.iter().take(files_to_delete) {
+                    let _ = fs::remove_file(path);
+                    get_metrics_registry().record_l1_eviction();
+                }
+            }
         }
     }
 
@@ -1157,7 +1251,7 @@ impl CacheManager {
     #[allow(dead_code)]
     pub fn get_cache_status() -> Vec<String> {
         let mut status = Vec::new();
-        
+
         // L2 Status
         let cache = get_l2_cache();
         let mut total_count = 0;
@@ -1167,9 +1261,14 @@ impl CacheManager {
             let shard_lock = shard.read().unwrap();
             total_count += shard_lock.len();
             for (key, entry) in shard_lock.iter() {
-                 items.push(format!(
-                    "Shard: {}, Key: {}, Score: {:.2}, Size: {}B, Cost: {}ms, LastAccess: {}", 
-                    i, key, entry.get_score(), entry.size, entry.cost, entry.last_access.load(Ordering::Relaxed)
+                items.push(format!(
+                    "Shard: {}, Key: {}, Score: {:.2}, Size: {}B, Cost: {}ms, LastAccess: {}",
+                    i,
+                    key,
+                    entry.get_score(),
+                    entry.size,
+                    entry.cost,
+                    entry.last_access.load(Ordering::Relaxed)
                 ));
             }
         }
@@ -1181,11 +1280,16 @@ impl CacheManager {
         status.push(format!("--- L1 Cache (Disk) Count: {} ---", l1_cache.len()));
         for (key, entry) in l1_cache.iter() {
             status.push(format!(
-                "Key: {}, Score: {:.2}, Size: {}B, Cost: {}ms, Path: {:?}, LastAccess: {}", 
-                key, entry.get_score(), entry.size, entry.cost, entry.file_path, entry.last_access.load(Ordering::Relaxed)
+                "Key: {}, Score: {:.2}, Size: {}B, Cost: {}ms, Path: {:?}, LastAccess: {}",
+                key,
+                entry.get_score(),
+                entry.size,
+                entry.cost,
+                entry.file_path,
+                entry.last_access.load(Ordering::Relaxed)
             ));
         }
-        
+
         status
     }
 
@@ -1216,16 +1320,16 @@ impl CacheManager {
     /// Ensures a Parquet cache exists for the given file.
     /// Returns the path to the Parquet file (either newly created or existing).
     pub async fn ensure_parquet_cache(
-        file_path: &str, 
-        source_type: &str, 
-        sheet_name: Option<String>
+        file_path: &str,
+        source_type: &str,
+        sheet_name: Option<String>,
     ) -> Result<String> {
         let shadow_path = if let Some(sheet) = &sheet_name {
-             format!("{}_{}.shadow.parquet", file_path, sheet)
+            format!("{}_{}.shadow.parquet", file_path, sheet)
         } else {
-             format!("{}.shadow.parquet", file_path)
+            format!("{}.shadow.parquet", file_path)
         };
-        
+
         if Path::new(&shadow_path).exists() {
             println!("Cache hit: Using existing shadow file {}", shadow_path);
             return Ok(shadow_path);
@@ -1235,36 +1339,49 @@ impl CacheManager {
         let flight_key = format!("shadow:{}", shadow_path);
         match Self::join_or_start_flight(flight_key.clone()) {
             FlightResult::IsFollower(mut rx) => {
-                println!("[CacheManager] Waiting for shadow file transcoding (Follower): {}", shadow_path);
+                println!(
+                    "[CacheManager] Waiting for shadow file transcoding (Follower): {}",
+                    shadow_path
+                );
                 let _ = rx.changed().await;
                 if *rx.borrow() == FlightStatus::Completed {
-                     if Path::new(&shadow_path).exists() {
-                         return Ok(shadow_path);
-                     }
+                    if Path::new(&shadow_path).exists() {
+                        return Ok(shadow_path);
+                    }
                 }
                 // If failed or missing after wait
-                return Err(DataFusionError::Execution("Concurrent transcoding failed or file missing".to_string()));
+                return Err(DataFusionError::Execution(
+                    "Concurrent transcoding failed or file missing".to_string(),
+                ));
             }
             FlightResult::IsLeader(flight_guard) => {
-                println!("Cache miss: Transcoding {} to Parquet (Leader)...", file_path);
-                
+                println!(
+                    "Cache miss: Transcoding {} to Parquet (Leader)...",
+                    file_path
+                );
+
                 let transcoding_task = async {
                     let ctx = SessionContext::new();
                     let df = match source_type {
-                        "csv" => {
-                            ctx.read_csv(file_path, CsvReadOptions::default()).await?
-                        },
+                        "csv" => ctx.read_csv(file_path, CsvReadOptions::default()).await?,
                         "excel" => {
-                            let sheet = sheet_name.ok_or(DataFusionError::Execution("Sheet name required for Excel".to_string()))?;
-                            let ds = ExcelDataSource::new("temp".to_string(), file_path.to_string(), sheet);
+                            let sheet = sheet_name.ok_or(DataFusionError::Execution(
+                                "Sheet name required for Excel".to_string(),
+                            ))?;
+                            let ds = ExcelDataSource::new(
+                                "temp".to_string(),
+                                file_path.to_string(),
+                                sheet,
+                            );
                             let mem_table = ds.load_table()?;
                             ctx.read_table(mem_table)?
-                        },
+                        }
                         _ => return Ok(file_path.to_string()), // Should not happen given logic flow
                     };
 
                     // Write to Parquet
-                    df.write_parquet(&shadow_path, DataFrameWriteOptions::default(), None).await?;
+                    df.write_parquet(&shadow_path, DataFrameWriteOptions::default(), None)
+                        .await?;
                     Ok(shadow_path.clone())
                 };
 
@@ -1304,7 +1421,10 @@ mod tests {
         assert_eq!(CacheManager::canonicalize_sql("(a=1)"), "a=1");
         assert_eq!(CacheManager::canonicalize_sql("((a=1))"), "a=1");
         // Balanced but not wrapper
-        assert_eq!(CacheManager::canonicalize_sql("(a=1) AND (b=2)"), "a=1 AND b=2");
+        assert_eq!(
+            CacheManager::canonicalize_sql("(a=1) AND (b=2)"),
+            "a=1 AND b=2"
+        );
     }
 
     #[test]
@@ -1323,19 +1443,25 @@ mod tests {
         // Split OR -> [A AND B], [C AND D]
         // Sorted -> A AND B OR C AND D
         let s = "a=1 AND b=2 OR c=3 AND d=4";
-        let s_rev = "c=3 AND d=4 OR b=2 AND a=1"; 
+        let s_rev = "c=3 AND d=4 OR b=2 AND a=1";
         // s_rev split OR -> [c=3 AND d=4], [b=2 AND a=1 -> a=1 AND b=2]
         // Sort -> [a=1 AND b=2], [c=3 AND d=4]
         // Join -> a=1 AND b=2 OR c=3 AND d=4
-        assert_eq!(CacheManager::canonicalize_sql(s), "a=1 AND b=2 OR c=3 AND d=4");
-        assert_eq!(CacheManager::canonicalize_sql(s_rev), "a=1 AND b=2 OR c=3 AND d=4");
+        assert_eq!(
+            CacheManager::canonicalize_sql(s),
+            "a=1 AND b=2 OR c=3 AND d=4"
+        );
+        assert_eq!(
+            CacheManager::canonicalize_sql(s_rev),
+            "a=1 AND b=2 OR c=3 AND d=4"
+        );
     }
-    
+
     #[test]
     fn test_canonicalize_whitespace() {
         assert_eq!(CacheManager::canonicalize_sql("  a = 1  "), "a = 1");
     }
-    
+
     #[test]
     fn test_canonicalize_case_insensitive_keywords() {
         assert_eq!(CacheManager::canonicalize_sql("a=1 and b=2"), "a=1 AND b=2");
@@ -1353,7 +1479,7 @@ mod tests {
     #[tokio::test]
     async fn test_eviction_reliability() {
         use datafusion::arrow::array::Int64Builder;
-        use datafusion::arrow::datatypes::{Field, Schema, DataType as ArrowDataType};
+        use datafusion::arrow::datatypes::{DataType as ArrowDataType, Field, Schema};
 
         // 1. Setup
         CacheManager::clear_l2();
@@ -1361,10 +1487,12 @@ mod tests {
         CacheManager::set_test_memory_limit(Some(350));
 
         // 2. Prepare Data (Mock RecordBatches)
-        let schema = Arc::new(Schema::new(vec![
-            Field::new("a", ArrowDataType::Int64, false),
-        ]));
-        
+        let schema = Arc::new(Schema::new(vec![Field::new(
+            "a",
+            ArrowDataType::Int64,
+            false,
+        )]));
+
         // Helper to create batch of approx specific size
         // 5 * 8 bytes = 40 bytes payload + overhead
         let make_batch = |size_bytes: usize| -> Vec<RecordBatch> {
@@ -1381,28 +1509,28 @@ mod tests {
         // 3. Insert Items
         // A: Cost 1000, Size 40 -> High Score -> Keep
         let batch_a = make_batch(40);
-        CacheManager::put_l2("A".to_string(), batch_a, 1000); 
-        
+        CacheManager::put_l2("A".to_string(), batch_a, 1000);
+
         // B: Cost 1, Size 40 -> Low Score -> Evict victim
         let batch_b = make_batch(40);
         CacheManager::put_l2("B".to_string(), batch_b, 1);
-        
+
         // C: Cost 500, Size 40 -> Medium Score -> Keep
         let batch_c = make_batch(40);
         CacheManager::put_l2("C".to_string(), batch_c, 500);
-        
+
         // Total Size inserted > 100.
-        
+
         // 4. Trigger Eviction
         CacheManager::run_eviction_cycle_for_test(350).await;
-        
+
         // 5. Verify
         let res_b = CacheManager::get_l2("B");
         assert!(res_b.is_none(), "Item B should be evicted (Low Score)");
-        
+
         let res_a = CacheManager::get_l2("A");
         assert!(res_a.is_some(), "Item A should be kept (High Score)");
-        
+
         let res_c = CacheManager::get_l2("C");
         assert!(res_c.is_some(), "Item C should be kept (Medium Score)");
     }

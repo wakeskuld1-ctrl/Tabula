@@ -1,8 +1,8 @@
-use std::sync::Arc;
-use metadata_store::{MetadataStore, TableMetadata};
 use datafusion::error::{DataFusionError, Result};
 use datafusion::prelude::SessionContext;
+use metadata_store::{MetadataStore, TableMetadata};
 use rusqlite::Connection;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct MetadataManager {
@@ -11,24 +11,38 @@ pub struct MetadataManager {
 
 impl MetadataManager {
     pub fn new(store_path: &str) -> Result<Self> {
-        let store = MetadataStore::new(store_path)
-            .map_err(|e| DataFusionError::Execution(format!("Failed to init metadata store: {}", e)))?;
+        let store = MetadataStore::new(store_path).map_err(|e| {
+            DataFusionError::Execution(format!("Failed to init metadata store: {}", e))
+        })?;
         Ok(Self {
             store: Arc::new(store),
         })
     }
 
-    pub async fn register_table(&self, ctx: &SessionContext, catalog: &str, schema: &str, table: &str, file_path: &str, source_type: &str, sheet_name: Option<String>) -> Result<()> {
+    pub async fn register_table(
+        &self,
+        ctx: &SessionContext,
+        catalog: &str,
+        schema: &str,
+        table: &str,
+        file_path: &str,
+        source_type: &str,
+        sheet_name: Option<String>,
+    ) -> Result<()> {
         // 1. Capture Schema from DataFusion
         let schema_json = if let Ok(provider) = ctx.table_provider(table).await {
             let schema = provider.schema();
-            let fields: Vec<serde_json::Value> = schema.fields().iter().map(|f| {
-                serde_json::json!({
-                    "name": f.name(),
-                    "type": f.data_type().to_string(),
-                    "nullable": f.is_nullable()
+            let fields: Vec<serde_json::Value> = schema
+                .fields()
+                .iter()
+                .map(|f| {
+                    serde_json::json!({
+                        "name": f.name(),
+                        "type": f.data_type().to_string(),
+                        "nullable": f.is_nullable()
+                    })
                 })
-            }).collect();
+                .collect();
             Some(serde_json::to_string(&fields).unwrap_or_default())
         } else {
             None
@@ -45,30 +59,32 @@ impl MetadataManager {
                         let unique: bool = row.get(2)?;
                         Ok((name, unique))
                     });
-                    
+
                     if let Ok(iter) = index_iter {
-                         for i in iter {
-                             if let Ok((name, unique)) = i {
-                                 let mut cols = Vec::new();
-                                 let info_sql = format!("PRAGMA index_info({})", name);
-                                 if let Ok(mut info_stmt) = conn.prepare(&info_sql) {
-                                     let col_iter = info_stmt.query_map([], |r| {
-                                         let col_name: String = r.get(2)?;
-                                         Ok(col_name)
-                                     });
-                                     if let Ok(c_iter) = col_iter {
-                                         for c in c_iter {
-                                             if let Ok(cn) = c { cols.push(cn); }
-                                         }
-                                     }
-                                 }
-                                 indexes.push(serde_json::json!({
-                                     "name": name,
-                                     "unique": unique,
-                                     "columns": cols
-                                 }));
-                             }
-                         }
+                        for i in iter {
+                            if let Ok((name, unique)) = i {
+                                let mut cols = Vec::new();
+                                let info_sql = format!("PRAGMA index_info({})", name);
+                                if let Ok(mut info_stmt) = conn.prepare(&info_sql) {
+                                    let col_iter = info_stmt.query_map([], |r| {
+                                        let col_name: String = r.get(2)?;
+                                        Ok(col_name)
+                                    });
+                                    if let Ok(c_iter) = col_iter {
+                                        for c in c_iter {
+                                            if let Ok(cn) = c {
+                                                cols.push(cn);
+                                            }
+                                        }
+                                    }
+                                }
+                                indexes.push(serde_json::json!({
+                                    "name": name,
+                                    "unique": unique,
+                                    "columns": cols
+                                }));
+                            }
+                        }
                     }
                 }
                 if !indexes.is_empty() {
@@ -96,17 +112,20 @@ impl MetadataManager {
             indexes_json,
         };
 
-        self.store.save_table(&meta)
+        self.store
+            .save_table(&meta)
             .map_err(|e| DataFusionError::Execution(format!("Failed to register table: {}", e)))
     }
 
     pub fn unregister_table(&self, catalog: &str, schema: &str, table: &str) -> Result<usize> {
-        self.store.delete_table(catalog, schema, table)
+        self.store
+            .delete_table(catalog, schema, table)
             .map_err(|e| DataFusionError::Execution(format!("Failed to unregister table: {}", e)))
     }
 
     pub fn list_tables(&self) -> Result<Vec<TableMetadata>> {
-        self.store.list_tables()
+        self.store
+            .list_tables()
             .map_err(|e| DataFusionError::Execution(format!("Failed to list tables: {}", e)))
     }
 
@@ -115,7 +134,7 @@ impl MetadataManager {
         // Placeholder for metadata refresh logic
         // This will iterate over tables and update schema/stats by contacting the source
         // In a real implementation, we would call source.introspect() here
-        // println!("Refreshing metadata..."); 
+        // println!("Refreshing metadata...");
         // Commented out to avoid noise in tests/logs
         Ok(())
     }
@@ -137,14 +156,22 @@ mod tests {
         let ctx = SessionContext::new();
 
         // 1. Register a table with 3-layer namespace
-        mgr.register_table(&ctx, "my_cat", "my_schema", "orders", "/tmp/orders.csv", "csv", None)
-            .await
-            .expect("Failed to register table");
+        mgr.register_table(
+            &ctx,
+            "my_cat",
+            "my_schema",
+            "orders",
+            "/tmp/orders.csv",
+            "csv",
+            None,
+        )
+        .await
+        .expect("Failed to register table");
 
         // 2. List tables
         let tables = mgr.list_tables().expect("Failed to list tables");
         assert_eq!(tables.len(), 1);
-        
+
         let t = &tables[0];
         assert_eq!(t.catalog_name, "my_cat");
         assert_eq!(t.schema_name, "my_schema");
@@ -152,9 +179,17 @@ mod tests {
         assert_eq!(t.file_path, "/tmp/orders.csv");
 
         // 3. Register another table (default namespace simulation)
-        mgr.register_table(&ctx, "datafusion", "public", "users", "/tmp/users.xlsx", "excel", Some("Sheet1".to_string()))
-            .await
-            .expect("Failed to register users");
+        mgr.register_table(
+            &ctx,
+            "datafusion",
+            "public",
+            "users",
+            "/tmp/users.xlsx",
+            "excel",
+            Some("Sheet1".to_string()),
+        )
+        .await
+        .expect("Failed to register users");
 
         let tables = mgr.list_tables().expect("Failed to list tables");
         assert_eq!(tables.len(), 2);
@@ -162,8 +197,8 @@ mod tests {
 
         // Cleanup
         drop(mgr); // Explicitly drop manager to close DB connection
-        // Give OS a moment to release the file lock if necessary, though drop should be synchronous for connection closing
-        // We ignore the error here because the test logic already passed, and file deletion issues on Windows are common in tests
+                   // Give OS a moment to release the file lock if necessary, though drop should be synchronous for connection closing
+                   // We ignore the error here because the test logic already passed, and file deletion issues on Windows are common in tests
         let _ = fs::remove_file(db_path);
     }
 }
