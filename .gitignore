@@ -1,0 +1,38 @@
+# Rust
+/target
+/dist
+**/*.rs.bk
+Cargo.lock
+
+# Node.js / Frontend
+node_modules/
+dist/
+.env
+.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+.pytest_cache/
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Project Specific - Data & Cache
+# Ignore large runtime data and cache files to keep repo light
+/federated_query_engine/cache/
+/federated_query_engine/data/
+*.db
+*.parquet
+*.csv
+*.xlsx
+*.log
+
+# Allow keeping specific test data if needed (example)
+# !/federated_query_engine/data/sample_schema.json

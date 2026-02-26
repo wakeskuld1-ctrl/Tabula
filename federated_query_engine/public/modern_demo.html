@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Federated Query Engine - Modern UI</title>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- FortuneSheet (Univer's Open Source Sibling) -->
+    <link rel="stylesheet" href="https://unpkg.com/@fortune-sheet/react/dist/index.css" />
+    <script src="https://unpkg.com/@fortune-sheet/react/dist/index.umd.js"></script>
+    
+    <!-- Babel for JSX (in-browser compilation for demo only) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        body { margin: 0; padding: 0; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        #root { width: 100vw; height: 100vh; display: flex; flex-direction: column; }
+        .header { height: 48px; background: #fff; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; padding: 0 16px; justify-content: space-between; }
+        .title { font-weight: 600; color: #111827; display: flex; align-items: center; gap: 8px; }
+        .tag { background: #dbeafe; color: #1e40af; font-size: 12px; padding: 2px 8px; border-radius: 12px; font-weight: 500; }
+        .btn { background: #2563eb; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 500; cursor: pointer; }
+        .btn:hover { background: #1d4ed8; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        const { Workbook } = FortuneSheet;
+
+        const App = () => {
+            const [data, setData] = useState([{
+                name: "Query Results",
+                celldata: [
+                    { r: 0, c: 0, v: { v: "ID", m: "ID", bg: "#f3f4f6", bl: 1 } },
+                    { r: 0, c: 1, v: { v: "Transaction", m: "Transaction", bg: "#f3f4f6", bl: 1 } },
+                    { r: 0, c: 2, v: { v: "Amount", m: "Amount", bg: "#f3f4f6", bl: 1 } },
+                    { r: 0, c: 3, v: { v: "Status", m: "Status", bg: "#f3f4f6", bl: 1 } },
+                    
+                    { r: 1, c: 0, v: { v: 101, m: "101" } },
+                    { r: 1, c: 1, v: { v: "TXN_MODERN_01", m: "TXN_MODERN_01" } },
+                    { r: 1, c: 2, v: { v: 2500.00, m: "2500.00", ct: { fa: "#,##0.00", t: "n" } } },
+                    { r: 1, c: 3, v: { v: "Verified", m: "Verified", fc: "#059669" } },
+
+                    { r: 2, c: 0, v: { v: 102, m: "102" } },
+                    { r: 2, c: 1, v: { v: "TXN_MODERN_02", m: "TXN_MODERN_02" } },
+                    { r: 2, c: 2, v: { v: 100.50, m: "100.50", ct: { fa: "#,##0.00", t: "n" } } },
+                    { r: 2, c: 3, v: { v: "Pending", m: "Pending", fc: "#d97706" } }
+                ]
+            }]);
+
+            return (
+                <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
+                    <div className="header">
+                        <div className="title">
+                            Federated Query Engine
+                            <span className="tag">Modern React UI</span>
+                        </div>
+                        <button className="btn" onClick={() => alert('Simulating Rust Backend Query...')}>
+                            Execute SQL
+                        </button>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                        <Workbook data={data} onChange={(d) => setData(d)} />
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
