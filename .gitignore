@@ -24,6 +24,10 @@ venv/
 .DS_Store
 Thumbs.db
 
+# [2026-03-08] 变更原因：清理开源前本地工作目录噪声; 变更目的：避免误提交本地协作与工作树文件
+/.trae/
+/.worktrees/
+
 # Project Specific - Data & Cache
 # Ignore large runtime data and cache files to keep repo light
 /federated_query_engine/cache/

@@ -8,16 +8,16 @@
 
 ```text
 metadata/
+├── docs/                    # [文档目录] 架构设计、压测报告、实施计划统一归档
 ├── federated_query_engine/  # [核心服务] Axum Web 服务器，包含查询逻辑、缓存管理、数据源实现
-│   ├── src/
-│   │   ├── datasources/     # 数据源连接器 (CSV, Excel, Oracle, SQLite)
-│   │   ├── cache_manager.rs # 核心缓存逻辑 (L1/L2 缓存, 驱逐策略)
-│   │   └── main.rs          # 程序入口与 API 定义
 ├── metadata_store/          # [基础库] 共享元数据存储逻辑 (本地依赖 crate)
-├── data/                    # [数据目录] 存放 Excel/CSV 源文件 (需自行添加)
-├── cache/                   # [缓存目录] 运行时生成的 Parquet 缓存文件
+├── wasm_grid/               # [前端网格引擎] Rust + WASM 渲染核心
+├── src/                     # [根二进制] 元数据系统示例与入口
+├── data/                    # [数据目录] 运行时数据占位（默认仅保留 .keep）
 └── target/                  # [构建产物] 编译生成的可执行文件
 ```
+
+> **[2026-03-08] 变更原因：目录结构与现状不一致；变更目的：开源发布前统一路径认知**
 
 ## 发布前清理范围
 
