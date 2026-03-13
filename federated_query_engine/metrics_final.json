@@ -1,0 +1,16 @@
+{
+  "query_count": 5005,
+  "total_query_latency_us": 1220269263,
+  "l2_hits": 6,
+  "l2_misses": 5006,
+  "l2_read_latency_us": 17,
+  "l2_lock_wait_us": 5953,
+  "l2_eviction_count": 1,
+  "l1_hits": 0,
+  "l1_misses": 5006,
+  "l1_io_latency_us": 0,
+  "l1_eviction_count": 0,
+  "l0_requests": 5002,
+  "l0_exec_latency_us": 9145672,
+  "memory_usage": 5090388
+}

@@ -1,0 +1,5 @@
+Found 1 connections
+
+Checking Connection: tpcc@192.168.23.4:1843/yashandb (conn_1770111588950) [yashandb]
+  Total tables: 2
+  No BMSQL/TPCC tables found.
