@@ -39,16 +39,8 @@
     <link rel="stylesheet" href="libs/ag-grid.css" />
     <link rel="stylesheet" href="libs/ag-theme-alpine.css" />
     
-    <!-- Monaco Editor Loader (BootCDN with Fallback) -->
-    <script src="https://cdn.bootcdn.net/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js" onerror="loadBackupMonaco(this)"></script>
-    <script>
-        function loadBackupMonaco(script) {
-            console.warn('BootCDN failed, loading from Staticfile...');
-            const newScript = document.createElement('script');
-            newScript.src = "https://cdn.staticfile.org/monaco-editor/0.36.1/min/vs/loader.min.js";
-            document.head.appendChild(newScript);
-        }
-    </script>
+    <!-- Monaco Editor Loader (Local) -->
+    <script src="libs/monaco-editor/loader.js"></script>
     
     <style>
         /* Custom Scrollbar for Webkit */
@@ -78,6 +70,72 @@
             display: inline-block;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Tree View Styles */
+        .tree-node {
+            display: flex;
+            align-items: center;
+            padding: 6px 8px;
+            cursor: pointer;
+            border-radius: 4px;
+            color: #374151; /* gray-700 */
+            font-size: 0.875rem; /* text-sm */
+            user-select: none;
+            transition: background-color 0.1s;
+        }
+        .tree-node:hover {
+            background-color: #e5e7eb; /* gray-200 */
+        }
+        .tree-node.active {
+            background-color: #dbeafe; /* blue-100 */
+            color: #2563eb; /* blue-600 */
+        }
+        .tree-toggle {
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 2px;
+            color: #9ca3af; /* gray-400 */
+            font-size: 0.7rem;
+            transition: transform 0.15s;
+        }
+        .tree-toggle.expanded {
+            transform: rotate(90deg);
+        }
+        .tree-toggle.hidden {
+            visibility: hidden;
+        }
+        .tree-icon {
+            margin-right: 8px;
+            width: 16px;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+        .tree-label {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .tree-children {
+            padding-left: 18px;
+            display: none;
+            border-left: 1px solid #e5e7eb; /* Guide line */
+            margin-left: 7px;
+        }
+        .tree-children.visible {
+            display: block;
+        }
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin-left: 6px;
+        }
+        .status-green { background-color: #10b981; box-shadow: 0 0 2px #10b981; }
+        .status-gray { background-color: #d1d5db; border: 1px solid #9ca3af; }
     </style>
 </head>
 <body class="h-full flex flex-col bg-gray-50 text-gray-900 overflow-hidden font-sans">
@@ -101,38 +159,23 @@
         <!-- Sidebar -->
         <aside class="w-72 bg-gray-50 border-r border-gray-200 flex flex-col shrink-0 transition-all duration-300" id="sidebar">
             <!-- Sidebar Header -->
-            <div class="p-3 border-b border-gray-200 bg-white/50 backdrop-blur">
-                <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">数据源管理</h3>
-                
-                <!-- Action Buttons -->
-                <div class="grid grid-cols-2 gap-2">
-                    <button onclick="document.getElementById('fileInput').click()" class="flex items-center justify-center px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-xs text-white transition shadow-sm">
-                        <i class="fas fa-upload mr-2"></i> 上传文件
-                    </button>
-                    <button onclick="toggleSqliteModal()" class="flex items-center justify-center px-3 py-2 bg-white hover:bg-gray-100 rounded text-xs text-gray-700 transition border border-gray-300 shadow-sm">
-                        <i class="fas fa-plug mr-2"></i> 连接 DB
-                    </button>
+            <div class="h-10 border-b border-gray-200 bg-white flex items-center justify-between px-3 shrink-0">
+                <span class="font-bold text-sm text-gray-700">数据源 (Data Sources)</span>
+                <div class="flex items-center space-x-3 text-gray-400">
+                    <button onclick="document.getElementById('fileInput').click()" title="上传文件 (Upload)" class="hover:text-blue-600 transition"><i class="fas fa-upload"></i></button>
+                    <button id="btn-add-connection" onclick="toggleDbConnectModal()" title="新建连接 (New Connection)" class="hover:text-blue-600 transition"><i class="fas fa-plus"></i></button>
+                    <button onclick="fetchTables()" title="刷新 (Refresh)" class="hover:text-blue-600 transition"><i class="fas fa-sync-alt"></i></button>
                 </div>
                 <input type="file" id="fileInput" accept=".csv,.xlsx" class="hidden" onchange="handleFileUpload(this)">
             </div>
 
-            <!-- Tables List -->
-            <div class="flex-1 overflow-y-auto p-2">
-                <div class="flex items-center justify-between px-2 py-2 mb-1">
-                    <span class="text-xs font-semibold text-gray-400 uppercase">已注册表</span>
-                    <button onclick="fetchTables()" class="text-gray-500 hover:text-white" title="刷新列表">
-                        <i class="fas fa-sync-alt text-xs"></i>
-                    </button>
-                </div>
-                
-                <ul id="table-list" class="space-y-1">
-                    <!-- Populated via JS -->
-                    <li class="px-3 py-2 text-sm text-gray-500 italic text-center">正在加载...</li>
-                </ul>
+            <!-- Tree Container -->
+            <div id="tree-root" class="flex-1 overflow-y-auto p-2">
+                <div class="text-xs text-gray-400 text-center mt-4 italic">Loading sources...</div>
             </div>
             
             <!-- Connection Status -->
-            <div id="upload-status" class="p-2 text-xs text-center border-t border-gray-700 min-h-[1.5rem] truncate"></div>
+            <div id="upload-status" class="p-2 text-xs text-center border-t border-gray-200 text-gray-500 min-h-[1.5rem] truncate bg-white"></div>
         </aside>
 
         <!-- Main Content (Editor + Results) -->
@@ -175,7 +218,9 @@
                 <div class="h-8 bg-gray-800 border-b border-gray-700 flex items-center px-2">
                     <div id="tab-result" onclick="switchTab('result')" class="px-3 py-1 bg-gray-900 text-blue-400 text-xs border-t-2 border-blue-500 font-medium cursor-pointer">Result 1</div>
                     <div id="tab-plan" onclick="switchTab('plan')" class="px-3 py-1 text-gray-500 text-xs hover:text-gray-300 cursor-pointer border-t-2 border-transparent">Execution Plan</div>
-                    <div id="tab-messages" onclick="switchTab('messages')" class="px-3 py-1 text-gray-500 text-xs hover:text-gray-300 cursor-pointer border-t-2 border-transparent">Messages</div>
+                    <div id="tab-sidecar" onclick="switchTab('sidecar')" class="px-3 py-1 text-gray-500 text-xs hover:text-gray-300 cursor-pointer border-t-2 border-transparent">Sidecar (侧车)</div>
+                    <div id="tab-tools" onclick="switchTab('tools')" class="px-3 py-1 text-gray-500 text-xs hover:text-gray-300 cursor-pointer border-t-2 border-transparent">Tools (工具)</div>
+                    <div id="tab-messages" onclick="switchTab('messages')" class="px-3 py-1 text-gray-500 text-xs hover:text-gray-300 cursor-pointer border-t-2 border-transparent">Logs (日志)</div>
                 </div>
                 <!-- Grid -->
                 <div id="grid-container" class="flex-1 w-full ag-theme-alpine-dark"></div>
@@ -194,6 +239,84 @@
                         <div class="flex-1 p-3 bg-gray-800 rounded border border-gray-700 flex flex-col min-h-0">
                             <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 shrink-0">Physical Plan Details (详细文本)</h4>
                             <pre id="plan-text" class="text-green-400 font-mono text-sm overflow-auto whitespace-pre flex-1 bg-gray-900/50 p-2 rounded"></pre>
+                        </div>
+                    </div>
+                </div>
+                <div id="sidecar-container" class="flex-1 w-full bg-gray-900 p-0 overflow-hidden hidden flex flex-col">
+                    <div class="h-8 bg-gray-800 flex items-center px-2 space-x-2 border-b border-gray-700">
+                        <button onclick="fetchSidecarLogs()" class="text-xs bg-gray-700 hover:bg-gray-600 text-white px-2 py-1 rounded"><i class="fas fa-sync-alt mr-1"></i> Refresh</button>
+                        <label class="text-xs text-gray-400 flex items-center"><input type="checkbox" id="auto-refresh-sidecar" checked class="mr-1"> Auto-refresh (2s)</label>
+                    </div>
+                    <div class="flex-1 overflow-auto">
+                        <table class="w-full text-left text-xs text-gray-400">
+                            <thead class="bg-gray-800 text-gray-200 sticky top-0">
+                                <tr>
+                                    <th class="p-2">Time</th>
+                                    <th class="p-2">Table</th>
+                                    <th class="p-2">Rows</th>
+                                    <th class="p-2">Speed</th>
+                                    <th class="p-2">Status</th>
+                                    <th class="p-2">Message</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sidecar-table-body" class="divide-y divide-gray-800">
+                                <!-- Logs here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="tools-container" class="flex-1 w-full bg-gray-900 p-4 overflow-hidden hidden flex flex-col">
+                    <div class="max-w-xl mx-auto w-full bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700">
+                        <h3 class="text-lg font-bold text-gray-200 mb-4 flex items-center">
+                            <i class="fas fa-link mr-2 text-blue-400"></i> Zero-Copy Table Link (智能零拷贝链接)
+                        </h3>
+                        <p class="text-xs text-gray-400 mb-6">
+                            Detect identical tables across datasources and link them to share a local cache, avoiding redundant network transfer.
+                            <br>(检测跨数据源的一致性表，并链接到共享本地缓存，避免重复传输。)
+                        </p>
+                
+                        <div class="space-y-4">
+                    <!-- Auto Scan Section -->
+                    <div class="mb-6 pb-6 border-b border-gray-700">
+                        <h4 class="text-sm font-bold text-gray-300 mb-2">Auto-Discovery (自动发现)</h4>
+                        <p class="text-xs text-gray-500 mb-3">
+                            Automatically scan all registered tables, group them by name, and link identical tables to local cache.
+                            <br>(自动扫描所有同名表，校验数据一致性，并链接到本地缓存。)
+                        </p>
+                        <button onclick="handleAutoScan()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition-colors flex items-center justify-center">
+                            <i class="fas fa-magic mr-2"></i> Auto-Scan & Link (一键智能链接)
+                        </button>
+                    </div>
+
+                    <div>
+                        <h4 class="text-sm font-bold text-gray-300 mb-2">Manual Link (手动链接)</h4>
+                        <label class="block text-xs font-medium text-gray-400 mb-1">Source Table (Existing Cache) / 源表 (已有缓存)</label>
+                                <select id="link-source-table" class="w-full bg-gray-900 border border-gray-600 text-gray-300 text-sm rounded p-2 focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="">Select source table...</option>
+                                </select>
+                            </div>
+                
+                            <div class="flex justify-center text-gray-500">
+                                <i class="fas fa-arrow-down"></i>
+                            </div>
+                
+                            <div>
+                                <label class="block text-xs font-medium text-gray-400 mb-1">Target Table (Remote to be Linked) / 目标表 (待链接远程表)</label>
+                                <select id="link-target-table" class="w-full bg-gray-900 border border-gray-600 text-gray-300 text-sm rounded p-2 focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="">Select target table...</option>
+                                </select>
+                            </div>
+                
+                            <div class="pt-4">
+                                <button onclick="handleLinkTables()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors flex items-center justify-center">
+                                    <i class="fas fa-random mr-2"></i> Verify Consistency & Link (验证并链接)
+                                </button>
+                            </div>
+                
+                            <!-- Output Log -->
+                            <div id="link-result-log" class="mt-4 p-3 bg-gray-950 rounded border border-gray-800 text-xs font-mono text-gray-400 hidden">
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -239,19 +362,73 @@
         </div>
     </div>
 
-    <!-- SQLite Modal -->
-    <div id="sqlite-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center">
+    <!-- DB Connect Modal -->
+    <div id="db-connect-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center">
         <div class="bg-white rounded-lg shadow-xl border border-gray-200 w-96 p-5 transform transition-all scale-100">
-            <h3 class="text-lg font-bold text-gray-900 mb-4"><i class="fas fa-database mr-2 text-green-600"></i> 连接 SQLite</h3>
+            <h3 class="text-lg font-bold text-gray-900 mb-4"><i class="fas fa-database mr-2 text-green-600"></i> 连接数据库 (Connect DB)</h3>
             <div class="space-y-3">
+                
+                <!-- Type Selection -->
                 <div>
-                    <label class="block text-xs text-gray-500 mb-1">数据库文件路径 (绝对路径)</label>
-                    <input type="text" id="sqlitePath" class="w-full bg-gray-50 border border-gray-300 rounded p-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none" placeholder="d:/path/to/db.sqlite">
+                    <label class="block text-xs text-gray-500 mb-1">数据库类型 (Type)</label>
+                    <select id="dbType" class="w-full bg-gray-50 border border-gray-300 rounded p-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none" onchange="handleDbTypeChange()">
+                        <option value="sqlite">SQLite</option>
+                        <option value="oracle">Oracle</option>
+                        <option value="yashandb">YashanDB</option>
+                    </select>
                 </div>
-                <div id="sqlite-modal-msg" class="text-xs min-h-[1rem]"></div>
+
+                <!-- SQLite Fields -->
+                <div id="field-sqlite" class="space-y-3">
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">数据库文件路径 (File Path)</label>
+                        <input type="text" id="sqlitePath" class="w-full bg-gray-50 border border-gray-300 rounded p-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none" placeholder="d:/path/to/db.sqlite">
+                    </div>
+                </div>
+
+                <!-- Oracle/YashanDB Fields -->
+                <div id="field-network-db" class="hidden space-y-3">
+                    <div class="grid grid-cols-3 gap-2">
+                        <div class="col-span-2">
+                            <label class="block text-xs text-gray-500 mb-1">主机 (Host)</label>
+                            <input type="text" id="dbHost" class="w-full bg-gray-50 border border-gray-300 rounded p-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none" placeholder="127.0.0.1">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">端口 (Port)</label>
+                            <input type="number" id="dbPort" class="w-full bg-gray-50 border border-gray-300 rounded p-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none" placeholder="1521">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">服务名/SID (Service)</label>
+                        <input type="text" id="dbService" class="w-full bg-gray-50 border border-gray-300 rounded p-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none" placeholder="XE / yashandb">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">用户名 (User)</label>
+                            <input type="text" id="dbUser" class="w-full bg-gray-50 border border-gray-300 rounded p-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none" placeholder="sys">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">密码 (Pass)</label>
+                            <input type="password" id="dbPass" class="w-full bg-gray-50 border border-gray-300 rounded p-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none" placeholder="password">
+                        </div>
+                    </div>
+                    <div class="flex items-end space-x-2">
+                        <div class="flex-1">
+                            <label class="block text-xs text-gray-500 mb-1">表名 (Table Name, Optional)</label>
+                            <input type="text" id="dbTable" class="w-full bg-gray-50 border border-gray-300 rounded p-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none" placeholder="MY_TABLE">
+                        </div>
+                    </div>
+                    <div id="field-sql-query" class="hidden">
+                        <label class="block text-xs text-gray-500 mb-1">自定义查询 (SQL Query, Optional)</label>
+                        <input type="text" id="dbQuery" class="w-full bg-gray-50 border border-gray-300 rounded p-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none" placeholder="SELECT * FROM ...">
+                    </div>
+                </div>
+
+                <div id="db-modal-msg" class="text-xs min-h-[1rem]"></div>
+                
                 <div class="flex justify-end space-x-2 mt-4">
-                    <button onclick="toggleSqliteModal()" class="px-3 py-1.5 text-gray-500 hover:text-gray-700 text-sm">取消</button>
-                    <button onclick="connectSqlite()" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm shadow">连接</button>
+                    <button onclick="toggleDbConnectModal()" class="px-3 py-1.5 text-gray-500 hover:text-gray-700 text-sm">取消</button>
+                    <button onclick="connectDatabase()" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm shadow">连接 (Connect)</button>
                 </div>
             </div>
         </div>
@@ -264,160 +441,278 @@
                 <h3 class="text-lg font-bold text-gray-900 flex items-center">
                     <i class="fas fa-table mr-2 text-blue-600"></i> 
                     <span id="detail-table-name">Table Details</span>
-                    <span id="detail-source-type" class="ml-3 px-2 py-0.5 text-xs rounded bg-gray-200 text-gray-600 font-normal">Type</span>
                 </h3>
-                <button onclick="closeTableDetails()" class="text-gray-400 hover:text-gray-600 transition">
-                    <i class="fas fa-times"></i>
-                </button>
+                <button onclick="closeTableDetails()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
             </div>
             
-            <div class="p-4 overflow-y-auto flex-1 space-y-4">
-                <!-- Schema Section -->
+            <div class="flex-1 overflow-y-auto p-5 space-y-4">
                 <div>
-                    <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 border-b pb-1">Schema (字段结构)</h4>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200 text-sm">
+                    <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Source Type</span>
+                    <p id="detail-source-type" class="text-sm font-medium text-gray-900 mt-1">SQLite</p>
+                </div>
+
+                <div>
+                    <span class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Schema (Columns)</span>
+                    <div class="border border-gray-200 rounded-lg overflow-hidden">
+                        <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Field Name</th>
-                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nullable</th>
+                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nullable</th>
                                 </tr>
                             </thead>
                             <tbody id="detail-schema-body" class="bg-white divide-y divide-gray-200">
-                                <!-- JS Injected -->
+                                <!-- Schema Rows -->
                             </tbody>
                         </table>
                     </div>
                 </div>
 
-                <!-- Indexes Section -->
                 <div id="detail-indexes-section" class="hidden">
-                    <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 border-b pb-1 mt-4">Indexes (索引情况)</h4>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200 text-sm">
+                    <span class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Indexes</span>
+                    <div class="border border-gray-200 rounded-lg overflow-hidden">
+                        <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Index Name</th>
-                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Unique</th>
-                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Columns</th>
+                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unique</th>
+                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Columns</th>
                                 </tr>
                             </thead>
                             <tbody id="detail-indexes-body" class="bg-white divide-y divide-gray-200">
-                                <!-- JS Injected -->
+                                <!-- Index Rows -->
                             </tbody>
                         </table>
                     </div>
                 </div>
             </div>
 
-            <div class="p-3 border-t border-gray-200 bg-gray-50 rounded-b-lg flex justify-end">
-                <button onclick="closeTableDetails()" class="px-4 py-2 bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 rounded text-sm shadow-sm transition">关闭 (Close)</button>
+            <div class="p-4 border-t border-gray-200 bg-gray-50 rounded-b-lg flex justify-end">
+                <button onclick="closeTableDetails()" class="px-4 py-2 bg-white border border-gray-300 rounded text-sm font-medium text-gray-700 hover:bg-gray-50">Close</button>
             </div>
         </div>
     </div>
 
     <script>
-        // --- State & Config ---
         const API_BASE = window.location.origin;
-        let editor = null;
-        let gridApi = null;
-        
-        // --- Initialization ---
-        function initMonaco() {
-            if (typeof require === 'undefined') {
-                // If require is missing (maybe fallback is loading), retry shortly
-                // Max retries: 20 (2 seconds)
-                if (!window._monacoRetries) window._monacoRetries = 0;
-                if (window._monacoRetries < 20) {
-                    window._monacoRetries++;
-                    setTimeout(initMonaco, 100);
-                    return;
+        let editor;
+        let gridApi;
+
+        // Initialize Monaco Environment (Fix for 404 Workers)
+        window.MonacoEnvironment = {
+            getWorkerUrl: function (moduleId, label) {
+                if (label === 'json') {
+                    return './libs/monaco-editor/language/json/jsonWorker.js';
                 }
-                console.error("Monaco loader failed to load.");
-                // Fallback to Textarea
-                document.getElementById('editor-container').innerHTML = '<textarea id="sql-input-fallback" class="w-full h-full p-2 border border-gray-300 rounded font-mono" placeholder="输入 SQL..."></textarea>';
-                initGridWrapper();
+                if (label === 'css' || label === 'scss' || label === 'less') {
+                    return './libs/monaco-editor/language/css/cssWorker.js';
+                }
+                if (label === 'html' || label === 'handlebars' || label === 'razor') {
+                    return './libs/monaco-editor/language/html/htmlWorker.js';
+                }
+                if (label === 'typescript' || label === 'javascript') {
+                    return './libs/monaco-editor/language/typescript/tsWorker.js';
+                }
+                return './libs/monaco-editor/base/worker/workerMain.js';
+            }
+        };
+
+        // 初始化 Monaco Editor
+        // 修正：调整路径以匹配本地目录结构（libs/monaco-editor 包含 vs 的内容）
+        require.config({ paths: { 'vs': 'libs/monaco-editor' }});
+        require(['vs/editor/editor.main'], function() {
+            editor = monaco.editor.create(document.getElementById('editor-container'), {
+                value: 'SELECT * FROM orders LIMIT 10;',
+                language: 'sql',
+                theme: 'vs-dark',
+                automaticLayout: true,
+                minimap: { enabled: false },
+                fontSize: 14,
+                lineNumbers: 'on',
+                scrollBeyondLastLine: false,
+                roundedSelection: false,
+                padding: { top: 10 }
+            });
+            window.editor = editor; // Expose for testing
+            
+            // 添加 Ctrl+Enter 快捷键
+            editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, function() {
+                executeQuery();
+            });
+        });
+
+        // 初始化 ag-Grid
+        const gridOptions = {
+            columnDefs: [],
+            rowData: [],
+            defaultColDef: {
+                sortable: true,
+                filter: true,
+                resizable: true,
+                flex: 1,
+                minWidth: 100
+            },
+            animateRows: true,
+            pagination: true,
+            paginationPageSize: 20
+        };
+
+        const gridDiv = document.querySelector('#grid-container');
+        // 修正：针对旧版本 ag-Grid (< v31) 使用旧的初始化方式
+        new agGrid.Grid(gridDiv, gridOptions);
+        gridApi = gridOptions.api;
+
+        function renderGrid(data) {
+            // Ensure grid is visible
+            switchTab('result');
+
+            if (!data || data.length === 0) {
+                // 修正：旧版本 API 不支持 setGridOption
+                gridApi.setColumnDefs([]);
+                gridApi.setRowData([]);
+                document.getElementById('empty-state').classList.remove('hidden');
                 return;
             }
 
-            require.config({ paths: { 'vs': 'https://cdn.bootcdn.net/ajax/libs/monaco-editor/0.36.1/min/vs' }});
-
-            require(['vs/editor/editor.main'], function() {
-                // Init Editor
-                editor = monaco.editor.create(document.getElementById('editor-container'), {
-                    value: "-- Welcome to YDC Federated Query Engine\nSELECT * FROM orders LIMIT 10;",
-                    language: 'sql',
-                    theme: 'vs',
-                    automaticLayout: true,
-                    minimap: { enabled: false },
-                    fontSize: 14,
-                    fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
-                    scrollBeyondLastLine: false,
-                    padding: { top: 10 }
-                });
-
-                // Update Status Bar Cursor Position
-                editor.onDidChangeCursorPosition((e) => {
-                    document.getElementById('cursor-ln').innerText = e.position.lineNumber;
-                    document.getElementById('cursor-col').innerText = e.position.column;
-                });
-
-                initGridWrapper();
-            });
-        }
-
-        function initGridWrapper() {
-             // Init Grid (Empty)
-             if (typeof agGrid !== 'undefined') {
-                initGrid([], []);
-            } else {
-                console.error('agGrid not found, falling back to native table');
-                renderFallbackTable([], []);
-            }
-        }
-
-        // Start Init
-        initMonaco();
-
-
-        // --- HTML Table Fallback ---
-        function renderFallbackTable(data, columns) {
-            const container = document.getElementById('grid-container');
-            if (!columns || columns.length === 0) {
-                container.innerHTML = `
-                    <div class="flex items-center justify-center h-full text-gray-400 flex-col">
-                        <i class="fas fa-table text-4xl mb-2"></i>
-                        <p>No Data (Native View)</p>
-                    </div>`;
-                return;
-            }
-
-            let html = '<div class="overflow-auto h-full w-full"><table class="min-w-full divide-y divide-gray-200 border border-gray-200">';
+            document.getElementById('empty-state').classList.add('hidden');
+            const columns = Object.keys(data[0]).map(key => ({ field: key }));
+            // 修正：旧版本 API
+            gridApi.setColumnDefs(columns);
+            gridApi.setRowData(data);
             
-            // Header
-            html += '<thead class="bg-gray-50"><tr>';
-            columns.forEach(col => {
-                html += `<th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0 bg-gray-50 border-b border-gray-200">${col.headerName || col.field}</th>`;
-            });
-            html += '</tr></thead>';
-
-            // Body
-            html += '<tbody class="bg-white divide-y divide-gray-200">';
-            data.forEach((row, rowIndex) => {
-                html += `<tr class="${rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50">`;
-                columns.forEach(col => {
-                    html += `<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 border-r border-gray-100 last:border-r-0">${row[col.field] || ''}</td>`;
-                });
-                html += '</tr>';
-            });
-            html += '</tbody></table></div>';
-            
-            container.innerHTML = html;
+            // 强制刷新布局
+            setTimeout(() => {
+                gridApi.sizeColumnsToFit();
+            }, 50);
         }
 
         // Load Tables on Start
-        window.addEventListener('DOMContentLoaded', fetchTables);
+        window.addEventListener('DOMContentLoaded', () => {
+            fetchTables();
+            startLogPolling();
+        });
+
+        // --- Sidecar Logs ---
+        let sidecarInterval;
+        function startSidecarPolling() {
+            if (sidecarInterval) clearInterval(sidecarInterval);
+            fetchSidecarLogs();
+            sidecarInterval = setInterval(() => {
+                const autoRefresh = document.getElementById('auto-refresh-sidecar');
+                if (autoRefresh && autoRefresh.checked) {
+                    fetchSidecarLogs();
+                }
+            }, 1000); // Increased frequency to 1s
+        }
+
+        async function fetchSidecarLogs() {
+            const tbody = document.getElementById('sidecar-table-body');
+            const tabTitle = document.getElementById('tab-sidecar');
+            const refreshBtn = document.querySelector('#sidecar-container button');
+            
+            try {
+                const res = await fetch(`${API_BASE}/api/sidecar_logs`);
+                const data = await res.json();
+                
+                // Update Refresh Button Text to show liveliness
+                if (refreshBtn) {
+                    const now = new Date();
+                    refreshBtn.title = `Last updated: ${now.toLocaleTimeString()}`;
+                }
+
+                if (data.status === 'ok') {
+                    // Reverse to show newest at top
+                    const logs = data.logs.reverse();
+                    
+                    // Update Tab Title with Running Count
+                    const runningCount = logs.filter(l => l.status === 'Running').length;
+                    if (runningCount > 0) {
+                        tabTitle.innerHTML = `Sidecar <span class="ml-1 px-1.5 py-0.5 bg-blue-600 text-white text-[10px] rounded-full">${runningCount}</span>`;
+                        tabTitle.classList.add('animate-pulse'); // Subtle pulse effect
+                    } else {
+                        tabTitle.innerHTML = `Sidecar (侧车)`;
+                        tabTitle.classList.remove('animate-pulse');
+                    }
+
+                    if (logs.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-gray-500 italic">No logs yet (Log file might be empty or rotated)</td></tr>';
+                        return;
+                    }
+
+                    // Check if rotation happened recently
+                    const hasRotation = logs.some(l => l.message && l.message.includes('rotated'));
+
+                    tbody.innerHTML = logs.map(log => {
+                        let statusColor = 'text-gray-400';
+                        let statusIcon = '';
+                        
+                        if (log.status === 'Running') {
+                            statusColor = 'text-blue-400';
+                            statusIcon = '<i class="fas fa-spinner fa-spin mr-1"></i>';
+                        }
+                        else if (log.status === 'Completed') {
+                            statusColor = 'text-green-400';
+                            statusIcon = '<i class="fas fa-check mr-1"></i>';
+                        }
+                        else if (log.status === 'Failed') {
+                            statusColor = 'text-red-400';
+                            statusIcon = '<i class="fas fa-times mr-1"></i>';
+                        }
+
+                        return `
+                            <tr class="hover:bg-gray-800 border-b border-gray-800 last:border-0 transition-colors duration-150">
+                                <td class="p-2 font-mono text-gray-500 whitespace-nowrap">${log.timestamp}</td>
+                                <td class="p-2 font-medium text-gray-300">${log.table_name}</td>
+                                <td class="p-2 font-mono text-right text-gray-400">${log.row_count.toLocaleString()}</td>
+                                <td class="p-2 font-mono text-right text-gray-400">${Math.round(log.speed).toLocaleString()} r/s</td>
+                                <td class="p-2 ${statusColor} font-bold text-xs uppercase whitespace-nowrap">${statusIcon}${log.status}</td>
+                                <td class="p-2 text-gray-400 truncate max-w-xs" title="${log.message}">${log.message}</td>
+                            </tr>
+                        `;
+                    }).join('');
+                    
+                    if (hasRotation) {
+                         // Optional: Add a small indicator
+                    }
+                }
+            } catch (e) {
+                console.error("Sidecar log fetch failed", e);
+            }
+        }
+
+        // --- Log Polling ---
+        let logInterval;
+        function startLogPolling() {
+            if (logInterval) clearInterval(logInterval);
+            fetchLogs(); // Initial
+            logInterval = setInterval(fetchLogs, 2000); // Poll every 2s
+            
+            // Start Sidecar Polling too
+            startSidecarPolling();
+        }
+
+        async function fetchLogs() {
+            const container = document.getElementById('messages-container');
+            // Only fetch if tab is active (optimization) or just always fetch to keep history?
+            // User complained about not seeing logs, so let's fetch always but maybe only render if visible?
+            // Actually, we should just fetch.
+            try {
+                const res = await fetch(`${API_BASE}/api/logs`);
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    // Reverse to show newest at bottom? 
+                    // Usually logs are appended.
+                    // The backend returns a list.
+                    // Let's clear and render.
+                    container.innerHTML = data.logs.map(line => `<div class="whitespace-nowrap">${line}</div>`).join('');
+                    // Auto-scroll to bottom
+                    container.scrollTop = container.scrollHeight;
+                }
+            } catch (e) {
+                console.error("Log fetch failed", e);
+            }
+        }
 
         // --- Resizer Logic ---
         const resizer = document.getElementById('resizer');
@@ -435,10 +730,10 @@
         document.addEventListener('mousemove', (e) => {
             if (!isResizing) return;
             const containerRect = mainContent.getBoundingClientRect();
-            const newHeight = e.clientY - containerRect.top - 40; // 40 is toolbar height approx
+            const newHeight = e.clientY - containerRect.top - 40; 
             if (newHeight > 50 && newHeight < containerRect.height - 50) {
                 editorContainer.style.height = `${newHeight}px`;
-                editor.layout(); // Trigger Monaco layout update
+                editor.layout();
             }
         });
 
@@ -453,70 +748,354 @@
         // --- Core Functions ---
 
         async function fetchTables() {
-            const list = document.getElementById('table-list');
+            const treeRoot = document.getElementById('tree-root');
             try {
-                const response = await fetch(`${API_BASE}/api/tables`);
-                if (response.ok) {
-                    const data = await response.json();
-                    list.innerHTML = "";
-                    
-                    if (data.tables && Array.isArray(data.tables)) {
-                        if (data.tables.length === 0) {
-                            list.innerHTML = '<li class="px-3 py-2 text-sm text-gray-500 text-center">暂无数据表</li>';
-                            return;
-                        }
-                        data.tables.forEach(table => {
-                            // Support both old (string) and new (object) format for robustness
-                            const tableName = typeof table === 'string' ? table : table.table_name;
-                            const sourceType = table.source_type || 'unknown';
-                            const schemaJson = table.schema_json ? encodeURIComponent(table.schema_json) : '';
-                            const indexesJson = table.indexes_json ? encodeURIComponent(table.indexes_json) : '';
+                // Fetch both Registered Tables and Saved Connections
+                const t = new Date().getTime();
+                const [tablesRes, connsRes] = await Promise.all([
+                    fetch(`${API_BASE}/api/tables?t=${t}`),
+                    fetch(`${API_BASE}/api/connections?t=${t}`)
+                ]);
 
-                            // Icons
-                            let typeIcon = 'fa-table';
-                            if (sourceType === 'sqlite') typeIcon = 'fa-database text-green-500';
-                            else if (sourceType === 'csv') typeIcon = 'fa-file-csv text-yellow-500';
-                            else if (sourceType === 'excel') typeIcon = 'fa-file-excel text-green-600';
+                const tablesData = await tablesRes.json();
+                const connsData = await connsRes.json();
+                
+                console.log("FetchTables: Connections:", connsData);
 
-                            const li = document.createElement('li');
-                            li.className = "group px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white cursor-pointer rounded flex items-center justify-between transition";
-                            
-                            li.innerHTML = `
-                                <div class="flex items-center overflow-hidden flex-1" onclick="setEditorSql('${tableName}')">
-                                    <i class="fas ${typeIcon} mr-2 text-xs" title="${sourceType}"></i>
-                                    <span class="truncate" title="${tableName}">${tableName}</span>
-                                </div>
-                                <div class="flex items-center space-x-2">
-                                     <i class="fas fa-info-circle text-xs text-gray-500 hover:text-blue-400 opacity-0 group-hover:opacity-100 transition" 
-                                        title="查看详情 (Details)"
-                                        onclick="showTableDetails('${tableName}', '${sourceType}', '${schemaJson}', '${indexesJson}')"></i>
-                                     <i class="fas fa-arrow-right text-xs opacity-0 group-hover:opacity-100 text-gray-500 hover:text-blue-400" 
-                                        title="查询 (Query)"
-                                        onclick="setEditorSql('${tableName}')"></i>
-                                </div>
-                            `;
-                            list.appendChild(li);
-                        });
-                    }
+                treeRoot.innerHTML = "";
+                const tables = (tablesData.status === 'ok') ? tablesData.tables : [];
+                const connections = (connsData.status === 'ok') ? connsData.connections : [];
+
+                if (tables.length === 0 && connections.length === 0) {
+                     treeRoot.innerHTML = '<div class="text-xs text-gray-500 text-center mt-4">暂无数据源</div>';
+                } else {
+                    const hierarchy = buildHierarchy(tables, connections);
+                    renderTree(treeRoot, hierarchy);
                 }
             } catch (e) {
-                console.error("Failed to fetch tables:", e);
-                list.innerHTML = '<li class="px-3 py-2 text-sm text-red-400 text-center">加载失败</li>';
+                console.error("Failed to fetch sources:", e);
+                treeRoot.innerHTML = '<div class="text-xs text-red-400 text-center mt-4">加载失败</div>';
             }
         }
-        
-        function setEditorSql(tableName) {
-             const sql = `SELECT * FROM ${tableName} LIMIT 100;`;
-             if(editor) {
-                 editor.setValue(sql);
-             }
+
+        function buildHierarchy(tables, connections) {
+            console.log("Building Hierarchy with", connections.length, "connections");
+            const root = {
+                'sqlite': { label: 'SQLite', type: 'folder', children: {}, icon: 'fa-database text-green-500' },
+                'oracle': { label: 'Oracle', type: 'folder', children: {}, icon: 'fa-server text-red-600' },
+                'yashandb': { label: 'YashanDB', type: 'folder', children: {}, icon: 'fa-hdd text-blue-600' },
+                'file': { label: 'Files (CSV/Excel)', type: 'folder', children: {}, icon: 'fa-file text-yellow-500' }
+            };
+
+            // 1. Add Connections (Saved Configs)
+            connections.forEach(conn => {
+                const type = conn.source_type;
+                console.log("Processing conn:", conn.name, "Type:", type);
+                if (root[type]) {
+                    root[type].children[conn.id] = {
+                        label: conn.name,
+                        type: 'connection',
+                        id: conn.id,
+                        config: conn.config,
+                        sourceType: type, // Store type for registration
+                        children: {}, // Lazy load placeholder
+                        icon: 'fa-plug'
+                    };
+                }
+            });
+
+            // 2. Add Active Tables (Already Registered)
+            tables.forEach(table => {
+                const type = table.source_type;
+                let parent = root[type] ? root[type] : root['file'];
+                
+                // For files, flat list
+                if (type === 'csv' || type === 'excel' || type === 'parquet') {
+                    parent.children[table.table_name] = { label: table.table_name, type: 'table', data: table, icon: 'fa-table' };
+                } else {
+                    // For DBs, put in "Active Tables" folder if not already under a connection?
+                    // Ideally we should match them to a connection, but that's hard.
+                    // So we put them in a "Registered" folder.
+                    if (!parent.children['active_tables']) {
+                        parent.children['active_tables'] = { label: '已注册表 (Active)', type: 'folder', children: {}, icon: 'fa-check-circle' };
+                    }
+                    parent.children['active_tables'].children[table.table_name] = { label: table.table_name, type: 'table', data: table, icon: 'fa-table' };
+                }
+            });
+
+            // Clean up empty roots
+            Object.keys(root).forEach(key => {
+                if (Object.keys(root[key].children).length === 0) delete root[key];
+            });
+
+            return root;
         }
+
+        function renderTree(container, node, level = 0) {
+            const entries = Object.entries(node);
+            entries.sort((a, b) => a[0].localeCompare(b[0]));
+
+            entries.forEach(([key, item]) => {
+                const isLeaf = item.type === 'table' || item.type === 'remote_table';
+                const isConnection = item.type === 'connection';
+                
+                const nodeEl = document.createElement('div');
+                
+                // Header
+                const header = document.createElement('div');
+                header.className = `tree-node hover:bg-gray-200 transition-colors duration-100 ${isLeaf ? 'text-gray-600' : 'text-gray-700 font-medium'}`;
+                header.style.paddingLeft = `${level * 12 + 8}px`;
+                
+                // Toggle Icon
+                const toggle = document.createElement('div');
+                toggle.className = `tree-toggle ${isLeaf ? 'hidden' : ''}`;
+                toggle.innerHTML = '<i class="fas fa-chevron-right"></i>';
+                header.appendChild(toggle);
+
+                // Type Icon
+                const icon = document.createElement('i');
+                icon.className = `fas ${item.icon || 'fa-folder'} tree-icon`;
+                header.appendChild(icon);
+
+                // Label
+                const label = document.createElement('span');
+                label.className = "tree-label truncate";
+                label.innerText = item.label || key;
+                header.appendChild(label);
+
+                // Action Icons (for Table or Connection)
+                if (isLeaf || isConnection) {
+                    const actions = document.createElement('div');
+                    actions.className = "ml-2 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity";
+                    // Note: stopPropagation is important to avoid triggering the row click
+                    
+                    if (isLeaf) {
+                         actions.innerHTML = `
+                            <i class="fas fa-play text-green-600 hover:text-green-800 cursor-pointer" title="Query"></i>
+                            <i class="fas fa-trash text-red-500 hover:text-red-700 cursor-pointer" title="Unregister"></i>
+                        `;
+                        
+                        // Bind events manually to ensure stopPropagation
+                        const playBtn = actions.children[0];
+                        playBtn.onclick = (e) => {
+                            e.stopPropagation();
+                            header.click(); 
+                        };
+
+                        const trashBtn = actions.children[1];
+                        trashBtn.onclick = (e) => {
+                            e.stopPropagation();
+                            unregisterTable(item.label, item.data ? item.data.schema : null);
+                        };
+                    } else if (isConnection) {
+                         actions.innerHTML = `
+                            <i class="fas fa-trash text-red-500 hover:text-red-700 cursor-pointer" title="Delete Connection"></i>
+                        `;
+                        const trashBtn = actions.children[0];
+                        trashBtn.onclick = (e) => {
+                            e.stopPropagation();
+                            deleteConnection(item.id, item.label);
+                        };
+                    }
+
+                    header.appendChild(actions);
+                }
+
+                nodeEl.appendChild(header);
+                container.appendChild(nodeEl);
+
+                // Children Container
+                const childrenContainer = document.createElement('div');
+                childrenContainer.className = "tree-children";
+                nodeEl.appendChild(childrenContainer);
+
+                if (!isLeaf) {
+                    // Toggle Logic
+                    header.addEventListener('click', async (e) => {
+                        e.stopPropagation();
+                        const isExpanded = childrenContainer.classList.contains('visible');
+                        
+                        if (isConnection && !isExpanded && !item.loaded) {
+                             // Lazy Load Connection Tables
+                             item.loaded = true;
+                             childrenContainer.innerHTML = '<div class="text-xs text-gray-400 p-2 ml-4"><span class="loader mr-2"></span>Loading...</div>';
+                             childrenContainer.classList.add('visible');
+                             toggle.classList.add('expanded');
+                             
+                             try {
+                                 console.log(`Fetching tables for connection ${item.id}...`);
+                                 const res = await fetch(`${API_BASE}/api/connections/${item.id}/tables`);
+                                 const resData = await res.json();
+                                 console.log("Fetch tables result:", resData);
+                                 childrenContainer.innerHTML = ''; // Clear loading
+                                 
+                                 if (resData.status === 'ok' && resData.tables.length > 0) {
+                                     // Group by Schema
+                                     const schemaMap = {};
+                                     resData.tables.forEach(t => {
+                                         const s = t.schema || 'default';
+                                         if (!schemaMap[s]) schemaMap[s] = [];
+                                         schemaMap[s].push(t);
+                                     });
+                                     
+                                     // Build Sub-tree
+                                     const subTree = {};
+                                     Object.keys(schemaMap).forEach(s => {
+                                         const schemaNode = { label: s, type: 'schema', children: {}, icon: 'fa-box' };
+                                         schemaMap[s].forEach(t => {
+                                             schemaNode.children[t.table_name] = { 
+                                                 label: t.table_name, 
+                                                 type: 'remote_table', 
+                                                 data: t,
+                                                 connId: item.id,
+                                                 connConfig: item.config,
+                                                 sourceType: item.sourceType, // Pass type down
+                                                 icon: 'fa-table' 
+                                             };
+                                         });
+                                         subTree[s] = schemaNode;
+                                     });
+                                     
+                                     renderTree(childrenContainer, subTree, level + 1);
+                                 } else {
+                                     childrenContainer.innerHTML = `<div class="text-xs text-gray-400 p-2 ml-4">${resData.message || 'No tables found'}</div>`;
+                                 }
+                             } catch (err) {
+                                 childrenContainer.innerHTML = `<div class="text-xs text-red-400 p-2 ml-4">Error: ${err.message}</div>`;
+                             }
+                        } else {
+                            // Normal Toggle
+                            if (isExpanded) {
+                                childrenContainer.classList.remove('visible');
+                                toggle.classList.remove('expanded');
+                            } else {
+                                childrenContainer.classList.add('visible');
+                                toggle.classList.add('expanded');
+                                // If it has children data already (re-render not needed as DOM persists)
+                                if (item.children && Object.keys(item.children).length > 0 && childrenContainer.children.length === 0) {
+                                    renderTree(childrenContainer, item.children, level + 1);
+                                }
+                            }
+                        }
+                    });
+                } 
+                
+                if (isLeaf) {
+                    // Click to Query
+                    header.addEventListener('click', async () => {
+                         // Highlight active
+                         document.querySelectorAll('.tree-node').forEach(el => el.classList.remove('active'));
+                         header.classList.add('active');
+                         
+                         if (item.type === 'remote_table') {
+                            // Auto-Register then Query
+                            await autoRegisterAndQuery(item.label, item.connConfig, item.data.schema, item.sourceType);
+                        } else {
+                            // Already registered
+                            setEditorSql(item.label, item.data ? item.data.schema : null);
+                        }
+                   });
+               }
+           });
+       }
+       
+       async function autoRegisterAndQuery(tableName, connConfig, schema, sourceType) {
+            const msgDiv = document.getElementById('upload-status');
+            msgDiv.innerText = `Preparing ${tableName}...`;
+            msgDiv.className = 'p-2 text-xs text-center border-t border-gray-200 text-blue-500 min-h-[1.5rem] truncate bg-white';
+            
+            let url = "";
+            // Add table_name to config for registration
+            let body = { ...connConfig, table_name: tableName };
+            
+            if (sourceType === 'yashandb') {
+                url = `${API_BASE}/api/datasources/yashandb/register`;
+                if (schema) body.schema = schema;
+            } else if (sourceType === 'oracle') {
+                url = `${API_BASE}/api/datasources/oracle/register`;
+                if (schema) body.schema = schema;
+            }
+            
+            if (url) {
+                try {
+                    msgDiv.innerText = `Registering ${tableName}...`;
+                    const res = await fetch(url, { 
+                        method: 'POST', 
+                        body: JSON.stringify(body), 
+                        headers: {'Content-Type': 'application/json'} 
+                    });
+                    
+                    if (!res.ok) {
+                        const errData = await res.json().catch(() => ({}));
+                        throw new Error(errData.message || `Server returned ${res.status}`);
+                    }
+                    
+                    msgDiv.innerText = `Registered ${tableName}`;
+                    setTimeout(() => { msgDiv.innerText = ""; }, 2000);
+                } catch(e) {
+                    console.error("Auto-register failed", e);
+                    msgDiv.innerText = `Registration failed: ${e.message}`;
+                    msgDiv.className = 'p-2 text-xs text-center border-t border-gray-200 text-red-500 min-h-[1.5rem] truncate bg-white';
+                    return; // Stop execution on failure
+                }
+            }
+            
+            setEditorSql(tableName, schema);
+       }
+
+       async function unregisterTable(tableName, schema) {
+            if (!confirm(`Are you sure you want to unregister table '${tableName}'?`)) return;
+            
+            let url = `${API_BASE}/api/tables/${tableName}`;
+            if (schema) url += `?schema=${schema}`;
+            
+            try {
+                const res = await fetch(url, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    // Refresh tree
+                    fetchTables();
+                } else {
+                    alert('Failed to unregister: ' + data.message);
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+       }
+
+       async function deleteConnection(id, name) {
+            if (!confirm(`Are you sure you want to delete connection '${name}'?`)) return;
+            
+            try {
+                const res = await fetch(`${API_BASE}/api/connections/${id}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    // Refresh tree
+                    fetchTables();
+                } else {
+                    alert('Failed to delete connection: ' + data.message);
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+       }
+
+       function setEditorSql(tableName, schema) {
+            let fullTableName = tableName;
+            if (schema && schema !== 'default' && schema !== '') {
+                fullTableName = `${schema}.${tableName}`;
+            }
+            const sql = `SELECT * FROM ${fullTableName} LIMIT 100;`;
+            if(editor) {
+                editor.setValue(sql);
+                executeQuery(); 
+            }
+       }
 
         function showTableDetails(tableName, sourceType, schemaEncoded, indexesEncoded) {
             document.getElementById('detail-table-name').innerText = tableName;
             document.getElementById('detail-source-type').innerText = sourceType;
             
-            // Render Schema
             const schemaBody = document.getElementById('detail-schema-body');
             schemaBody.innerHTML = '';
             
@@ -541,7 +1120,6 @@
                 schemaBody.innerHTML = '<tr><td colspan="3" class="px-3 py-2 text-gray-400 text-center italic">No schema information available</td></tr>';
             }
 
-            // Render Indexes
             const indexSection = document.getElementById('detail-indexes-section');
             const indexBody = document.getElementById('detail-indexes-body');
             indexBody.innerHTML = '';
@@ -555,23 +1133,21 @@
                             indexBody.innerHTML += `
                                 <tr class="hover:bg-gray-50">
                                     <td class="px-3 py-2 whitespace-nowrap text-gray-900 font-medium">${idx.name}</td>
-                                    <td class="px-3 py-2 whitespace-nowrap text-gray-500">
-                                        ${idx.unique ? '<span class="px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 text-xs">Unique</span>' : '-'}
-                                    </td>
-                                    <td class="px-3 py-2 whitespace-nowrap text-gray-500 font-mono text-xs">${idx.columns.join(', ')}</td>
+                                    <td class="px-3 py-2 whitespace-nowrap text-gray-500 font-mono text-xs">${idx.unique ? 'Yes' : 'No'}</td>
+                                    <td class="px-3 py-2 whitespace-nowrap text-gray-500 text-xs">${idx.columns.join(', ')}</td>
                                 </tr>
                             `;
                         });
                     } else {
-                        indexSection.classList.add('hidden');
+                         indexSection.classList.add('hidden');
                     }
                 } catch (e) {
-                     indexSection.classList.add('hidden');
+                    indexSection.classList.add('hidden');
                 }
             } else {
                 indexSection.classList.add('hidden');
             }
-
+            
             document.getElementById('table-details-modal').classList.remove('hidden');
         }
 
@@ -579,612 +1155,182 @@
             document.getElementById('table-details-modal').classList.add('hidden');
         }
 
+        // --- Other Functions ---
+
         async function executeQuery() {
             if (!editor) return;
-            const sql = editor.getValue();
-            if (!sql.trim()) return;
+            const sql = editor.getValue().trim();
+            if (!sql) return;
 
-            const gridDiv = document.getElementById('grid-container');
-            const emptyState = document.getElementById('empty-state');
-            const timerEl = document.getElementById('execution-timer');
-            const rowCounter = document.getElementById('row-counter');
+            const msgDiv = document.getElementById('upload-status');
+            msgDiv.innerText = 'Executing...';
+            msgDiv.className = 'p-2 text-xs text-center border-t border-gray-200 text-blue-500 min-h-[1.5rem] truncate bg-white';
             
-            // UI Loading State
-            emptyState.classList.add('hidden');
-            timerEl.classList.add('hidden');
-            rowCounter.classList.add('hidden');
+            const startTime = performance.now();
             
-            // Show loading overlay in grid if it exists, else simple opacity
-            if(gridApi) gridApi.showLoadingOverlay();
+            // Switch to result tab automatically
+            switchTab('result');
 
             try {
-                const start = performance.now();
                 const response = await fetch(`${API_BASE}/api/execute`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ sql: sql })
-                });
-                const end = performance.now();
-                const duration = Math.round(end - start);
-
-                const data = await response.json();
-
-                if (data.error) {
-                    showToast(`Error: ${data.error}`, 'error');
-                    if(gridApi) gridApi.hideOverlay();
-                    return;
-                }
-
-                // Update Stats
-                document.getElementById('time-val').innerText = data.execution_time_ms || duration;
-                document.getElementById('rows-val').innerText = data.rows.length;
-                timerEl.classList.remove('hidden');
-                rowCounter.classList.remove('hidden');
-
-                // Render Grid
-                renderGrid(data.columns, data.rows);
-                showToast("查询执行成功", 'success');
-
-            } catch (e) {
-                showToast(`Request Failed: ${e.message}`, 'error');
-                if(gridApi) gridApi.hideOverlay();
-            }
-        }
-
-        function renderGrid(columns, rows) {
-            const gridDiv = document.getElementById('grid-container');
-            
-            // Transform data for ag-Grid
-            // ag-Grid expects array of objects { col1: val1, col2: val2 }
-            // API returns rows as array of arrays [ [val1, val2], ... ]
-            // FIX: Use index-based keys (col_0, col_1) to handle column names with dots or duplicates
-            const rowData = rows.map(row => {
-                let obj = {};
-                columns.forEach((col, index) => {
-                    obj[`col_${index}`] = row[index];
-                });
-                return obj;
-            });
-
-            const colDefs = columns.map((col, index) => ({
-                field: `col_${index}`,
-                headerName: col,
-                sortable: true,
-                filter: true,
-                resizable: true
-            }));
-
-            // If grid exists, update it; else create it
-            // Actually, simpler to destroy and recreate or just set row data if cols same
-            // For generic SQL, cols change often. Recreating logic is safer or using API to set defs.
-            
-            if (typeof agGrid !== 'undefined') {
-                if (gridApi) {
-                    gridApi.setColumnDefs(colDefs);
-                    gridApi.setRowData(rowData);
-                } else {
-                    initGrid(colDefs, rowData);
-                }
-            } else {
-                renderFallbackTable(rowData, colDefs);
-            }
-        }
-
-        function initGrid(colDefs, rowData) {
-            const gridOptions = {
-                columnDefs: colDefs,
-                rowData: rowData,
-                defaultColDef: {
-                    flex: 1,
-                    minWidth: 100,
-                    resizable: true,
-                    sortable: true,
-                    filter: true
-                },
-                theme: 'ag-theme-alpine-dark', // Defined in CSS/Class
-                animateRows: true,
-                pagination: true,
-                paginationPageSize: 20,
-                overlayLoadingTemplate: '<div class="loader"></div><span class="ml-2 text-sm">查询执行中...</span>'
-            };
-
-            var eGridDiv = document.getElementById('grid-container');
-            eGridDiv.innerHTML = ''; // Clear fallback or previous grid
-
-            try {
-                // Try modern API (v30+)
-                if (typeof agGrid.createGrid === 'function') {
-                    gridApi = agGrid.createGrid(eGridDiv, gridOptions);
-                } 
-                // Try legacy API (v29-)
-                else if (typeof agGrid.Grid === 'function') {
-                    new agGrid.Grid(eGridDiv, gridOptions);
-                    gridApi = gridOptions.api;
-                } 
-                else {
-                    throw new Error("Unknown ag-Grid API version");
-                }
-            } catch (err) {
-                console.error("ag-Grid initialization failed, switching to native table:", err);
-                renderFallbackTable(rowData, colDefs);
-            }
-        }
-
-        async function handleFileUpload(input) {
-            if (input.files.length === 0) return;
-            
-            const file = input.files[0];
-            const formData = new FormData();
-            formData.append('file', file);
-            
-            updateStatus(`正在上传并优化 ${file.name} (转为高性能Parquet格式)...`, 'blue');
-
-            try {
-                const response = await fetch(`${API_BASE}/api/upload`, {
-                    method: 'POST',
-                    body: formData
+                    body: JSON.stringify({ sql })
                 });
 
-                const result = await response.json(); // Always expect JSON now
-
-                if (result.status === 'ok') {
-                    showToast(result.message, 'success');
-                    updateStatus('就绪', 'gray');
-                    fetchTables();
-                } else if (result.status === 'select_sheet') {
-                    // Handle Multiple Sheets
-                    updateStatus('需选择Sheet', 'yellow');
-                    showToast('检测到多个Sheet，请选择', 'info');
-                    pendingUpload = result; // { sheets: [], file_path: "...", sanitized_name: "..." }
-                    openSheetModal(result.sheets);
-                } else {
-                    showToast(`上传失败: ${result.message}`, 'error');
-                    updateStatus('上传失败', 'red');
-                }
-            } catch (e) {
-                showToast(`上传错误: ${e.message}`, 'error');
-                updateStatus('错误', 'red');
-            }
-            
-            // Reset input
-            input.value = '';
-        }
-
-        // Sheet Modal Logic
-        function openSheetModal(sheets) {
-            const modal = document.getElementById('sheet-modal');
-            const list = document.getElementById('sheet-list');
-            list.innerHTML = '';
-            
-            sheets.forEach(sheet => {
-                const btn = document.createElement('button');
-                btn.className = "w-full text-left px-4 py-2 bg-gray-50 hover:bg-blue-50 text-gray-700 hover:text-blue-700 rounded border border-gray-200 transition text-sm flex justify-between items-center group";
-                btn.innerHTML = `<span>${sheet}</span> <i class="fas fa-plus opacity-0 group-hover:opacity-100"></i>`;
-                btn.onclick = () => confirmSheetSelection(sheet);
-                list.appendChild(btn);
-            });
-            
-            modal.classList.remove('hidden');
-        }
-
-        function closeSheetModal() {
-            document.getElementById('sheet-modal').classList.add('hidden');
-            pendingUpload = null;
-            updateStatus('就绪', 'gray');
-        }
-
-        async function confirmSheetSelection(sheetName) {
-            if (!pendingUpload) return;
-            
-            const { file_path, sanitized_name } = pendingUpload;
-            // Rule: sanitized_name + "_" + sheetName
-            const safeSheetName = sheetName.replace(/[.\-\s()]/g, '_');
-            const finalTableName = `${sanitized_name}_${safeSheetName}`;
-            
-            updateStatus(`正在注册并优化 ${finalTableName} (转为高性能Parquet格式)...`, 'blue');
-
-            try {
-                const response = await fetch(`${API_BASE}/api/register_table`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        file_path: file_path,
-                        table_name: finalTableName,
-                        sheet_name: sheetName, // Original sheet name for lookup
-                        source_type: 'excel'
-                    })
-                });
-                
                 const result = await response.json();
+                const endTime = performance.now();
+                const duration = Math.round(endTime - startTime);
+                
+                document.getElementById('execution-timer').classList.remove('hidden');
+                document.getElementById('time-val').innerText = duration;
+
                 if (result.status === 'ok') {
-                    showToast(`已注册: ${finalTableName}`, 'success');
-                    fetchTables();
-                    closeSheetModal();
-                } else {
-                    showToast(`注册失败: ${result.message}`, 'error');
-                    updateStatus('注册失败', 'red');
-                }
-            } catch (e) {
-                showToast(`请求失败: ${e.message}`, 'error');
-                updateStatus('错误', 'red');
-            }
-        }
-
-        function toggleSqliteModal() {
-            const modal = document.getElementById('sqlite-modal');
-            modal.classList.toggle('hidden');
-            document.getElementById('sqlite-modal-msg').innerText = '';
-        }
-
-        async function connectSqlite() {
-            const pathInput = document.getElementById('sqlitePath');
-            const msgDiv = document.getElementById('sqlite-modal-msg');
-            const path = pathInput.value.trim();
-            
-            if (!path) {
-                msgDiv.innerText = "请输入路径";
-                msgDiv.className = "text-xs text-red-500";
-                return;
-            }
-
-            msgDiv.innerText = "连接中...";
-            msgDiv.className = "text-xs text-blue-400";
-
-            try {
-                const response = await fetch(`${API_BASE}/api/connect_sqlite`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ path: path })
-                });
-
-                if (response.ok) {
-                    const result = await response.json();
-                    showToast(`已连接 SQLite, 发现 ${result.tables.length} 个表`, 'success');
-                    fetchTables();
-                    toggleSqliteModal();
-                } else {
-                    const err = await response.text();
-                    msgDiv.innerText = `失败: ${err}`;
-                    msgDiv.className = "text-xs text-red-500";
-                }
-            } catch (e) {
-                msgDiv.innerText = `错误: ${e.message}`;
-                msgDiv.className = "text-xs text-red-500";
-            }
-        }
-
-        // --- Helpers ---
-        function updateStatus(text, color) {
-            const el = document.getElementById('upload-status');
-            el.innerText = text;
-            el.className = `p-2 text-xs text-center border-t border-gray-700 min-h-[1.5rem] truncate text-${color}-400`;
-        }
-
-        function clearEditor() {
-            if(editor) editor.setValue('');
-        }
-
-        function formatSQL() {
-            // Placeholder for formatting logic (sql-formatter library could be added)
-            showToast("格式化功能暂未集成", 'info');
-        }
-
-        function showToast(message, type = 'info') {
-            // Simple toast implementation
-            const toast = document.createElement('div');
-            const colors = {
-                success: 'bg-green-600',
-                error: 'bg-red-600',
-                info: 'bg-blue-600'
-            };
-            toast.className = `fixed bottom-10 right-5 ${colors[type] || 'bg-gray-700'} text-white px-4 py-2 rounded shadow-lg z-50 text-sm animate-bounce-in`;
-            toast.innerHTML = message;
-            document.body.appendChild(toast);
-            
-            setTimeout(() => {
-                toast.remove();
-            }, 3000);
-        }
-
-        // --- Tabs & Logs ---
-        let currentTab = 'result';
-        let logPollInterval = null;
-
-        function switchTab(tab) {
-            currentTab = tab;
-            const tabResult = document.getElementById('tab-result');
-            const tabPlan = document.getElementById('tab-plan');
-            const tabMessages = document.getElementById('tab-messages');
-            
-            const gridContainer = document.getElementById('grid-container');
-            const planContainer = document.getElementById('plan-container');
-            const msgsContainer = document.getElementById('messages-container');
-            const emptyState = document.getElementById('empty-state');
-
-            // Reset Styles
-            const activeClass = "px-3 py-1 bg-gray-900 text-blue-400 text-xs border-t-2 border-blue-500 font-medium cursor-pointer";
-            const inactiveClass = "px-3 py-1 text-gray-500 text-xs hover:text-gray-300 cursor-pointer border-t-2 border-transparent";
-            
-            tabResult.className = inactiveClass;
-            tabPlan.className = inactiveClass;
-            tabMessages.className = inactiveClass;
-
-            // Hide All
-            gridContainer.classList.add('hidden');
-            planContainer.classList.add('hidden');
-            msgsContainer.classList.add('hidden');
-            if (emptyState) emptyState.classList.add('hidden');
-
-            // Logic
-            if (tab === 'result') {
-                tabResult.className = activeClass;
-                gridContainer.classList.remove('hidden');
-                
-                if (!gridApi || (gridApi.getModel && gridApi.getModel().getRowCount() === 0)) {
-                    if (emptyState) emptyState.classList.remove('hidden');
-                }
-            } else if (tab === 'plan') {
-                tabPlan.className = activeClass;
-                planContainer.classList.remove('hidden');
-            } else {
-                tabMessages.className = activeClass;
-                msgsContainer.classList.remove('hidden');
-            }
-
-            // Polling Logic
-            if (tab === 'messages') {
-                fetchLogs();
-                if (!logPollInterval) {
-                    logPollInterval = setInterval(fetchLogs, 2000);
-                }
-            } else {
-                 if (logPollInterval) {
-                    clearInterval(logPollInterval);
-                    logPollInterval = null;
-                }
-            }
-        }
-
-        async function fetchLogs() {
-            try {
-                const response = await fetch(`${API_BASE}/api/logs`);
-                if (response.ok) {
-                    const data = await response.json();
-                    const container = document.getElementById('messages-container');
-                    if (data.logs && data.logs.length > 0) {
-                        // Check if user is near bottom to auto-scroll
-                        const isAtBottom = (container.scrollHeight - container.scrollTop - container.clientHeight) < 50;
-
-                        container.innerHTML = data.logs.map(log => {
-                            let color = 'text-gray-400';
-                            if (log.includes('Error') || log.includes('fail') || log.includes('Warning')) color = 'text-red-400';
-                            else if (log.includes('Executing')) color = 'text-blue-300';
-                            else if (log.includes('Registered')) color = 'text-green-300';
-                            else if (log.includes('Fixed SQL')) color = 'text-yellow-300';
-                            
-                            return `<div class="${color} mb-1 border-b border-gray-800 pb-1 break-all whitespace-pre-wrap">${log}</div>`;
-                        }).join('');
-                        
-                        // Auto scroll to bottom if was at bottom or first load
-                        if (isAtBottom || container.scrollTop === 0) {
-                            container.scrollTop = container.scrollHeight;
-                        }
-                    } else {
-                        container.innerHTML = '<div class="text-gray-500 italic p-4 text-center">No logs yet...</div>';
-                    }
-                }
-            } catch (e) {
-                console.error("Fetch logs failed", e);
-            }
-        }
-
-        // --- Mermaid & Plan ---
-        // Initialize Mermaid
-        mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose' });
-
-        const TRANSLATIONS = {
-            "ProjectionExec": "投影 (Projection)",
-            "FilterExec": "过滤 (Filter)",
-            "HashJoinExec": "哈希连接 (HashJoin)",
-            "CrossJoinExec": "交叉连接 (CrossJoin)",
-            "TableScan": "表扫描 (TableScan)",
-            "CoalesceBatchesExec": "合并批次 (CoalesceBatches)",
-            "CoalescePartitionsExec": "合并分区 (CoalescePartitions)",
-            "RepartitionExec": "重分区 (Repartition)",
-            "GlobalLimitExec": "全局限制 (GlobalLimit)",
-            "LocalLimitExec": "本地限制 (LocalLimit)",
-            "SortExec": "排序 (Sort)",
-            "AggregateExec": "聚合 (Aggregate)",
-            "MemoryExec": "内存扫描 (Memory)",
-            "EmptyExec": "空执行 (Empty)",
-            "UnionExec": "联合 (Union)",
-            "ExplainExec": "解释 (Explain)",
-            "SubqueryAliasExec": "子查询别名 (SubqueryAlias)",
-            "WindowAggExec": "窗口聚合 (WindowAgg)",
-            "ValuesExec": "值 (Values)",
-            "LimitExec": "限制 (Limit)",
-            "ParquetExec": "Parquet扫描 (ParquetExec)",
-            "CsvExec": "CSV扫描 (CsvExec)"
-        };
-
-        async function renderMermaidGraph(planText) {
-            const container = document.getElementById('mermaid-graph');
-            if (!planText || planText.startsWith("Error") || planText.startsWith("No plan")) {
-                container.innerHTML = '<span class="text-gray-500 italic text-xs">Unable to visualize plan.</span>';
-                return;
-            }
-
-            try {
-                const lines = planText.split('\n').filter(l => l.trim());
-                let edges = [];
-                let nodes = [];
-                let stack = {}; // depth -> nodeId
-
-                lines.forEach((line, index) => {
-                    // Calculate indentation (2 spaces = 1 level is standard, but sometimes it varies, assume 2)
-                    const indentMatch = line.match(/^(\s*)/);
-                    const indent = indentMatch ? indentMatch[1].length : 0;
-                    const depth = indent / 2;
-
-                    const content = line.trim();
-                    // Split Type and Details
-                    const splitIdx = content.indexOf(':');
-                    let type = splitIdx > -1 ? content.substring(0, splitIdx) : content;
-                    let details = splitIdx > -1 ? content.substring(splitIdx + 1).trim() : "";
-
-                    const nodeId = `node_${index}`;
-                    const translatedType = TRANSLATIONS[type] || type;
-
-                    // Extract Pushdown Info / Cost (Heuristic)
-                    let extraInfo = "";
-                    
-                    // Highlight Filters (Pushdown)
-                    if (details.includes('filters=[')) {
-                        const filterMatch = details.match(/filters=\[([^\]]+)\]/);
-                        if (filterMatch) {
-                            let fContent = filterMatch[1];
-                            if (fContent.length > 40) fContent = fContent.substring(0, 35) + "...";
-                            extraInfo += `<br/><span style='color:#fbbf24'>Filters: ${fContent}</span>`;
-                        }
-                    }
-                    
-                    // Highlight Pushdown SQL (SqliteExec)
-                    if (details.includes('pushdown_sql=')) {
-                        const sqlIndex = details.indexOf('pushdown_sql=');
-                        if (sqlIndex > -1) {
-                            let sqlContent = details.substring(sqlIndex + 13).trim();
-                            let safeSql = sqlContent.replace(/"/g, "'");
-                            if (safeSql.length > 60) {
-                                safeSql = safeSql.substring(0, 60) + "...";
-                            }
-                            extraInfo += `<br/><span style='color:#60a5fa; font-weight:bold'>SQL: ${safeSql}</span>`;
-                        }
-                    }
-                    
-                    // Highlight SQLite Plan (Pushdown Plan)
-                    if (details.includes('sqlite_plan=[')) {
-                        const planIndex = details.indexOf('sqlite_plan=[');
-                        if (planIndex > -1) {
-                            // Find the closing bracket. Note: nested brackets are not handled but unlikely in simple plan text
-                            const endPlanIndex = details.indexOf(']', planIndex);
-                            if (endPlanIndex > -1) {
-                                let planContent = details.substring(planIndex + 13, endPlanIndex).trim();
-                                let safePlan = planContent.replace(/"/g, "'");
-                                extraInfo += `<br/><span style='color:#a78bfa; font-style:italic'>Exec: ${safePlan}</span>`;
-                            }
-                        }
-                    }
-
-                    // Highlight Metrics if available (rows=...)
-                    if (details.includes('metrics=[')) {
-                         const metricsMatch = details.match(/metrics=\[([^\]]+)\]/);
-                         if (metricsMatch) {
-                             // Try to find rows
-                             const rowMatch = metricsMatch[1].match(/output_rows=(\d+)/);
-                             if (rowMatch) {
-                                  extraInfo += `<br/><span style='color:#34d399'>Rows: ${rowMatch[1]}</span>`;
-                             }
-                         }
-                    }
-
-                    // Format Node Label
-                    // Escape quotes and brackets for Mermaid
-                    const safeDetails = details.replace(/"/g, "'").replace(/[\n\r]/g, " ").replace(/[<>\[\]]/g, "");
-                    const dispDetails = safeDetails.length > 50 ? safeDetails.substring(0, 50) + "..." : safeDetails;
-                    
-                    const label = `"${translatedType}<br/><span style='font-size:10px; color:#ccc'>${dispDetails}</span>${extraInfo}"`;
-                    
-                    // Style based on type
-                    let style = "";
-                    if (type.includes("Scan")) style = "style " + nodeId + " fill:#1e3a8a,stroke:#3b82f6,stroke-width:2px"; // Blue
-                    else if (type.includes("Join")) style = "style " + nodeId + " fill:#581c87,stroke:#a855f7,stroke-width:2px"; // Purple
-                    else if (type.includes("Filter")) style = "style " + nodeId + " fill:#7f1d1d,stroke:#ef4444,stroke-width:2px"; // Red
-                    else if (type.includes("Project")) style = "style " + nodeId + " fill:#064e3b,stroke:#10b981,stroke-width:2px"; // Green
-                    else style = "style " + nodeId + " fill:#374151,stroke:#6b7280"; // Gray
-
-                    nodes.push(`${nodeId}[${label}]`);
-                    if (style) nodes.push(style);
-
-                    // Link to Parent
-                    if (depth > 0) {
-                        // Find parent. Note: This logic assumes strict tree structure where children immediately follow parents
-                        // But in pre-order traversal (which string display usually is), the parent is at depth-1.
-                        // We need to find the *most recent* node at depth-1.
-                        const parentId = stack[depth - 1];
-                        if (parentId) {
-                            edges.push(`${parentId} --> ${nodeId}`);
-                        }
-                    }
-                    stack[depth] = nodeId;
-                });
-
-                const graphDef = `graph LR\n${nodes.join('\n')}\n${edges.join('\n')}`;
-                
-                // Render
-                const { svg } = await mermaid.render('mermaid-svg-' + Date.now(), graphDef);
-                
-                // Custom Zoom Controls (Bottom Right, Horizontal)
-                const controlsHtml = `
-                    <div id="custom-zoom-controls" class="absolute bottom-2 right-2 flex space-x-1 z-10 bg-gray-800 p-1 rounded border border-gray-700 shadow-lg">
-                        <button id="btn-zoom-in" class="w-6 h-6 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-gray-300 rounded text-xs transition" title="Zoom In">
-                            <i class="fas fa-plus"></i>
-                        </button>
-                        <button id="btn-zoom-out" class="w-6 h-6 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-gray-300 rounded text-xs transition" title="Zoom Out">
-                            <i class="fas fa-minus"></i>
-                        </button>
-                        <button id="btn-reset" class="w-6 h-6 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-gray-300 rounded text-xs transition" title="Reset">
-                            <i class="fas fa-compress-arrows-alt"></i>
-                        </button>
-                    </div>
-                `;
-                
-                // Inject SVG + Controls
-                container.innerHTML = svg + controlsHtml;
-                
-                // Initialize Pan/Zoom
-                const svgElement = container.querySelector('svg');
-                if (svgElement && typeof svgPanZoom !== 'undefined') {
-                    // Ensure SVG takes full space
-                    svgElement.style.width = '100%';
-                    svgElement.style.height = '100%';
-                    
-                    try {
-                        const panZoom = svgPanZoom(svgElement, {
-                            zoomEnabled: true,
-                            controlIconsEnabled: false, // Use custom controls
-                            fit: true,
-                            center: true,
-                            minZoom: 0.1,
-                            maxZoom: 10
+                    // Convert columns/rows to array of objects for ag-Grid
+                    const gridData = result.rows.map(row => {
+                        const obj = {};
+                        result.columns.forEach((col, i) => {
+                            obj[col] = row[i];
                         });
-                        
-                        // Bind Custom Controls
-                        document.getElementById('btn-zoom-in').onclick = () => panZoom.zoomIn();
-                        document.getElementById('btn-zoom-out').onclick = () => panZoom.zoomOut();
-                        document.getElementById('btn-reset').onclick = () => panZoom.resetZoom();
-                        
-                    } catch (e) {
-                        console.warn("svg-pan-zoom failed:", e);
+                        return obj;
+                    });
+
+                    renderGrid(gridData);
+                    let statusText = `Success (${result.rows.length} rows)`;
+                    if (result.message) {
+                        statusText += ` | ${result.message}`;
+                    }
+                    msgDiv.innerText = statusText;
+                    
+                    if (result.message && (result.message.toLowerCase().includes('loading') || result.message.includes('加载'))) {
+                         msgDiv.innerHTML += ' <i class="fas fa-circle-notch fa-spin ml-2"></i>';
+                    }
+
+                    msgDiv.className = 'p-2 text-xs text-center border-t border-gray-200 text-green-500 min-h-[1.5rem] truncate bg-white';
+                    
+                    document.getElementById('row-counter').classList.remove('hidden');
+                    document.getElementById('rows-val').innerText = result.rows.length;
+                } else {
+                    msgDiv.innerText = 'Error';
+                    msgDiv.className = 'p-2 text-xs text-center border-t border-gray-200 text-red-500 min-h-[1.5rem] truncate bg-white';
+                    
+                    // Clear grid
+                    gridApi.setColumnDefs([]);
+                    gridApi.setRowData([]);
+
+                    document.getElementById('empty-state').classList.remove('hidden');
+                    document.getElementById('empty-state').innerHTML = `
+                        <i class="fas fa-exclamation-triangle text-4xl mb-3 text-red-500 opacity-50"></i>
+                        <span class="text-sm text-red-500 px-4 text-center">${result.error || result.message || 'Unknown Error'}</span>
+                    `;
+                }
+            } catch (e) {
+                console.error(e);
+                msgDiv.innerText = 'Network Error';
+                msgDiv.className = 'p-2 text-xs text-center border-t border-gray-200 text-red-500 min-h-[1.5rem] truncate bg-white';
+            }
+        }
+
+        function parsePlanToMermaid(planText) {
+            const lines = planText.split('\n').filter(l => l.trim() !== '');
+            let mermaid = 'graph LR\n'; // Horizontal Layout
+            
+            // Stack to track hierarchy: [{ indent: -1, id: 'root' }]
+            // However, DataFusion plan is a tree printed via DFS.
+            // Indentation determines depth.
+            // Example:
+            // ProjectionExec ...
+            //   FilterExec ...
+            
+            let stack = []; 
+            let nodeCount = 0;
+            
+            lines.forEach((line, index) => {
+                // Calculate indentation (spaces)
+                const indent = line.search(/\S|$/);
+                const content = line.trim();
+                
+                // Determine node ID and Label
+                const nodeId = `N${nodeCount++}`;
+                
+                // Parse Content for better Label
+                // Remove addresses like [0x...] if any, or complex params for brevity
+                let label = content.split(':')[0]; // Get the Exec name
+                
+                // Translation Map
+                if (label.includes('ProjectionExec')) label = '投影 (Select)';
+                else if (label.includes('FilterExec')) label = '过滤 (Where)';
+                else if (label.includes('HashJoinExec')) label = '哈希连接 (Join)';
+                else if (label.includes('CrossJoinExec')) label = '交叉连接 (Cross Join)';
+                else if (label.includes('SortExec')) label = '排序 (Order By)';
+                else if (label.includes('LimitExec')) label = '限制 (Limit)';
+                else if (label.includes('GlobalLimitExec')) label = '全局限制';
+                else if (label.includes('LocalLimitExec')) label = '本地限制';
+                else if (label.includes('AggregateExec')) label = '聚合 (Group By)';
+                else if (label.includes('CoalesceBatchesExec')) label = '合并批次';
+                else if (label.includes('CoalescePartitionsExec')) label = '合并分区';
+                else if (label.includes('RepartitionExec')) label = '重分区';
+                else if (label.includes('MemoryExec')) label = '内存读取';
+                else if (label.includes('Scan')) {
+                    // Extract table name if possible
+                    // Scan: table_name ...
+                    const parts = content.split('table=');
+                    if (parts.length > 1) {
+                         // Try to get table name
+                         const tableName = parts[1].split(/[,\s]/)[0];
+                         label = `扫描: ${tableName}`;
+                    } else {
+                         label = '表扫描';
                     }
                 }
+                else if (label.includes('ValuesExec')) label = '常量数据';
+                else if (label.includes('EmptyExec')) label = '空结果';
                 
-            } catch (e) {
-                console.error("Mermaid Render Error:", e);
-                container.innerHTML = `<span class="text-red-500 text-xs">Visualization Error: ${e.message}</span>`;
-            }
+                // Escape quotes in label
+                label = label.replace(/"/g, "'");
+                
+                // Find Parent
+                // Parent is the last node in stack with indent < current indent
+                while (stack.length > 0 && stack[stack.length - 1].indent >= indent) {
+                    stack.pop();
+                }
+                
+                if (stack.length > 0) {
+                    const parentId = stack[stack.length - 1].id;
+                    mermaid += `    ${parentId} --> ${nodeId}\n`;
+                }
+                
+                mermaid += `    ${nodeId}["${label}"]\n`;
+                
+                // Style based on type
+                if (label.includes('扫描')) {
+                    mermaid += `    style ${nodeId} fill:#e1f5fe,stroke:#01579b,stroke-width:2px\n`;
+                } else if (label.includes('连接')) {
+                    mermaid += `    style ${nodeId} fill:#f3e5f5,stroke:#4a148c,stroke-width:2px\n`;
+                } else if (label.includes('聚合')) {
+                    mermaid += `    style ${nodeId} fill:#fff3e0,stroke:#e65100,stroke-width:2px\n`;
+                } else if (label.includes('过滤')) {
+                    mermaid += `    style ${nodeId} fill:#ffebee,stroke:#b71c1c,stroke-width:2px\n`;
+                }
+                
+                stack.push({ indent, id: nodeId });
+            });
+            
+            return mermaid;
         }
 
         async function explainSQL() {
-            let sql = editor ? editor.getValue() : document.getElementById('sql-input-fallback').value;
+            if (!editor) return;
+            const sql = editor.getValue().trim();
             if (!sql) return;
 
-            // Switch to Plan Tab
             switchTab('plan');
             
-            // Show Loading in Plan
+            const graphDiv = document.getElementById('mermaid-graph');
             const planText = document.getElementById('plan-text');
-            planText.innerText = "Generating plan...";
-            document.getElementById('mermaid-graph').innerHTML = '<div class="loader"></div>';
+            
+            graphDiv.innerHTML = '<span class="loader"></span>';
+            planText.innerText = 'Loading...';
 
             try {
                 const response = await fetch(`${API_BASE}/api/plan`, {
@@ -1193,34 +1339,389 @@
                     body: JSON.stringify({ sql })
                 });
 
-                if (response.ok) {
-                    const data = await response.json();
-                    
-                    if (data.physical_plan_text) {
-                         planText.innerText = data.physical_plan_text;
-                         // Render Graph
-                         await renderMermaidGraph(data.physical_plan_text);
-                    } else {
-                         planText.innerText = "No plan returned.";
-                         document.getElementById('mermaid-graph').innerHTML = '';
-                    }
-                    
-                    if (data.warnings && data.warnings.length > 0) {
-                        showToast(`Warning: ${data.warnings.join(', ')}`, 'info');
-                    }
+                const result = await response.json();
 
+                if (result.status === 'ok') {
+                    planText.innerText = result.physical_plan_text; // Correct field name
+                    
+                    // Generate Mermaid Graph from Physical Plan Text
+                    const mermaidCode = parsePlanToMermaid(result.physical_plan_text);
+                    
+                    graphDiv.innerHTML = `<div class="mermaid">${mermaidCode}</div>`;
+                    mermaid.init(undefined, document.querySelectorAll('.mermaid'));
                 } else {
-                     planText.innerText = "Error fetching plan.";
-                     document.getElementById('mermaid-graph').innerHTML = '';
-                     showToast("Failed to fetch plan", 'error');
+                    planText.innerText = `Error: ${result.message || result.error || 'Unknown Error'}`;
+                    graphDiv.innerHTML = `
+                        <div class="flex flex-col items-center justify-center h-full text-red-500">
+                            <i class="fas fa-exclamation-circle text-2xl mb-2"></i>
+                            <span>Failed to get plan</span>
+                            <span class="text-xs mt-1 opacity-75">${result.message || 'undefined'}</span>
+                        </div>`;
                 }
             } catch (e) {
-                console.error(e);
-                planText.innerText = `Error: ${e.message}`;
-                document.getElementById('mermaid-graph').innerHTML = '';
-                showToast(`Error: ${e.message}`, 'error');
+                planText.innerText = `Network Error: ${e.message}`;
             }
         }
+
+        function clearEditor() {
+            if (editor) editor.setValue('');
+        }
+        
+        function formatSQL() {
+            // Placeholder
+            alert("SQL Formatting coming soon!");
+        }
+
+        // --- File Upload ---
+        async function handleFileUpload(input) {
+            if (!input.files || input.files.length === 0) return;
+            const file = input.files[0];
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const msgDiv = document.getElementById('upload-status');
+            msgDiv.innerText = 'Uploading...';
+            msgDiv.className = 'p-2 text-xs text-center border-t border-gray-200 text-blue-500 min-h-[1.5rem] truncate bg-white';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+                if (result.status === 'ok') {
+                    if (result.sheets && result.sheets.length > 1) {
+                         // Multiple sheets found (Excel)
+                         showSheetSelection(result.filename, result.sheets);
+                         msgDiv.innerText = 'Select sheet...';
+                    } else {
+                        msgDiv.innerText = 'Upload Success';
+                        msgDiv.className = 'p-2 text-xs text-center border-t border-gray-200 text-green-500 min-h-[1.5rem] truncate bg-white';
+                        fetchTables();
+                    }
+                } else {
+                    msgDiv.innerText = `Error: ${result.message}`;
+                    msgDiv.className = 'p-2 text-xs text-center border-t border-gray-200 text-red-500 min-h-[1.5rem] truncate bg-white';
+                }
+            } catch (e) {
+                msgDiv.innerText = 'Upload Failed';
+                msgDiv.className = 'p-2 text-xs text-center border-t border-gray-200 text-red-500 min-h-[1.5rem] truncate bg-white';
+            }
+            input.value = ''; // Reset
+        }
+
+        function showSheetSelection(filename, sheets) {
+            const modal = document.getElementById('sheet-modal');
+            const list = document.getElementById('sheet-list');
+            list.innerHTML = '';
+            
+            sheets.forEach(sheet => {
+                const btn = document.createElement('button');
+                btn.className = 'w-full text-left px-4 py-2 hover:bg-gray-100 rounded border border-gray-200 text-sm flex items-center';
+                btn.innerHTML = `<i class="fas fa-table mr-2 text-gray-500"></i> ${sheet}`;
+                btn.onclick = () => registerSheet(filename, sheet);
+                list.appendChild(btn);
+            });
+            
+            modal.classList.remove('hidden');
+        }
+
+        function closeSheetModal() {
+            document.getElementById('sheet-modal').classList.add('hidden');
+        }
+
+        async function registerSheet(filename, sheet) {
+            closeSheetModal();
+            const msgDiv = document.getElementById('upload-status');
+            msgDiv.innerText = `Registering ${sheet}...`;
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/register_table`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        file_path: `data/${filename}`, 
+                        table_name: "", // Auto-generate
+                        sheet_name: sheet 
+                    })
+                });
+                const result = await response.json();
+                if (result.status === 'ok') {
+                    msgDiv.innerText = 'Success';
+                    msgDiv.className = 'p-2 text-xs text-center border-t border-gray-200 text-green-500 min-h-[1.5rem] truncate bg-white';
+                    fetchTables();
+                } else {
+                    msgDiv.innerText = `Error: ${result.message}`;
+                    msgDiv.className = 'p-2 text-xs text-center border-t border-gray-200 text-red-500 min-h-[1.5rem] truncate bg-white';
+                }
+            } catch (e) {
+                msgDiv.innerText = 'Register Failed';
+            }
+        }
+
+        async function handleAutoScan() {
+            const resultDiv = document.getElementById('link-result-log');
+            if (!resultDiv) {
+                console.error("Link result div not found");
+                return;
+            }
+            resultDiv.classList.remove('hidden');
+            resultDiv.innerHTML = '<div class="text-yellow-400"><i class="fas fa-spinner fa-spin mr-2"></i>Scanning and linking tables... This may take a moment. (正在扫描并链接...)</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/auto_link_scan`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    let detailsHtml = '';
+                    if (data.details && data.details.length > 0) {
+                        detailsHtml = `
+                            <div class="mt-3 text-xs bg-green-800 p-2 rounded max-h-40 overflow-y-auto">
+                                ${data.details.map(d => `<div class="mb-1 border-b border-green-700 pb-1 last:border-0">• ${d}</div>`).join('')}
+                            </div>
+                        `;
+                    } else {
+                        detailsHtml = '<div class="text-xs mt-2 opacity-75">No new links created. (未发现需链接的表)</div>';
+                    }
+
+                    resultDiv.innerHTML = `
+                        <div class="p-4 bg-green-900 text-green-100 rounded shadow-lg border border-green-700">
+                            <div class="flex items-center mb-2">
+                                <i class="fas fa-check-circle text-2xl mr-3 text-green-400"></i>
+                                <div>
+                                    <div class="font-bold text-lg">Auto-Scan Complete (扫描完成)</div>
+                                    <div class="text-sm opacity-90">Groups Scanned: ${data.groups_scanned} | Tables Linked: ${data.linked_count}</div>
+                                </div>
+                            </div>
+                            ${detailsHtml}
+                        </div>
+                    `;
+                    // Refresh table list to show updated cache status
+                    fetchTables();
+                } else {
+                    throw new Error(data.message || 'Scan failed');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="p-4 bg-red-900 text-red-100 rounded border border-red-700 flex items-center">
+                        <i class="fas fa-exclamation-triangle text-2xl mr-3 text-red-400"></i>
+                        <div>
+                            <div class="font-bold">Error during auto-scan</div>
+                            <div class="text-sm">${error.message}</div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // --- DB Connect Modal ---
+        function toggleDbConnectModal() {
+            const modal = document.getElementById('db-connect-modal');
+            modal.classList.toggle('hidden');
+            document.getElementById('db-modal-msg').innerText = '';
+        }
+
+        function handleDbTypeChange() {
+            const type = document.getElementById('dbType').value;
+            const sqliteField = document.getElementById('field-sqlite');
+            const networkField = document.getElementById('field-network-db');
+            const portInput = document.getElementById('dbPort');
+            const sqlQueryField = document.getElementById('field-sql-query');
+
+            if (type === 'sqlite') {
+                sqliteField.classList.remove('hidden');
+                networkField.classList.add('hidden');
+            } else {
+                sqliteField.classList.add('hidden');
+                networkField.classList.remove('hidden');
+
+                if (type === 'oracle') {
+                    portInput.value = "1521";
+                    sqlQueryField.classList.add('hidden');
+                } else if (type === 'yashandb') {
+                    portInput.value = "1688";
+                    sqlQueryField.classList.remove('hidden');
+                }
+            }
+        }
+
+        async function connectDatabase() {
+            const type = document.getElementById('dbType').value;
+            const msgDiv = document.getElementById('db-modal-msg');
+            msgDiv.innerText = 'Connecting...';
+            msgDiv.className = 'text-xs text-blue-600';
+
+            try {
+                let url, body;
+
+                if (type === 'sqlite') {
+                    url = `${API_BASE}/api/connect_sqlite`;
+                    const path = document.getElementById('sqlitePath').value;
+                    if (!path) throw new Error("Path required");
+                    body = { path };
+                } else {
+                    const host = document.getElementById('dbHost').value || '127.0.0.1';
+                    const port = parseInt(document.getElementById('dbPort').value) || (type === 'oracle' ? 1521 : 1688);
+                    const service = document.getElementById('dbService').value;
+                    const user = document.getElementById('dbUser').value;
+                    const pass = document.getElementById('dbPass').value;
+                    const table = document.getElementById('dbTable').value;
+
+                    if (!service || !user || !pass) {
+                        msgDiv.innerText = '请填写连接信息 (Host, Port, Service, User, Pass)';
+                        msgDiv.className = 'text-xs text-red-500';
+                        return;
+                    }
+
+                    // Mode 1: Register Single Table (if Table Name provided)
+                    if (table) {
+                        url = `${API_BASE}/api/datasources/${type}/register`;
+                        body = {
+                            host, port, service, user, pass, table_name: table,
+                            alias: table
+                        };
+                        if (type === 'yashandb') {
+                            const query = document.getElementById('dbQuery').value;
+                            if (query) body.sql_query = query;
+                        }
+                    } 
+                    // Mode 2: Save Connection (if No Table Name)
+                    else {
+                        url = `${API_BASE}/api/connections`;
+                        const id = `conn_${Date.now()}`;
+                        const name = `${user}@${host}:${port}/${service}`;
+                        body = {
+                            id: id,
+                            name: name,
+                            source_type: type,
+                            config: { host, port, service, user, pass }
+                        };
+                    }
+                }
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+
+                const result = await response.json();
+
+                if (result.status === 'ok') {
+                    // showToast('操作成功 / Success', 'success'); // showToast not defined
+                    toggleDbConnectModal();
+                    fetchTables();
+                } else {
+                    if (result.message && result.message.includes('10061')) {
+                         msgDiv.innerText = `连接失败: 目标计算机拒绝连接 (10061)。请检查数据库服务是否启动，防火墙是否放行端口 ${type==='yashandb'?1688:1521}。`;
+                    } else {
+                         msgDiv.innerText = `连接失败: ${result.message}`;
+                    }
+                    msgDiv.className = 'text-xs text-red-500';
+                }
+            } catch (e) {
+                msgDiv.innerText = `请求失败: ${e.message}`;
+                msgDiv.className = 'text-xs text-red-500';
+            }
+        }
+
+        // --- Tabs ---
+        function switchTab(tab) {
+            ['result', 'plan', 'sidecar', 'tools', 'messages'].forEach(t => {
+                const el = document.getElementById(`tab-${t}`);
+                if (el) {
+                    el.classList.remove('text-blue-400', 'border-blue-500', 'font-medium', 'bg-gray-900');
+                    el.classList.add('text-gray-500', 'border-transparent');
+                }
+                
+                // Toggle Containers
+                const container = document.getElementById(t === 'result' ? 'grid-container' : `${t}-container`);
+                if(container) container.classList.add('hidden');
+            });
+            
+            const activeTab = document.getElementById(`tab-${tab}`);
+            if (activeTab) {
+                activeTab.classList.remove('text-gray-500', 'border-transparent');
+                activeTab.classList.add('text-blue-400', 'border-blue-500', 'font-medium', 'bg-gray-900');
+            }
+            
+            const activeContainer = document.getElementById(tab === 'result' ? 'grid-container' : `${tab}-container`);
+            if(activeContainer) activeContainer.classList.remove('hidden');
+
+            // If switching to tools, refresh table list
+            if (tab === 'tools') {
+                fetchTableListForDropdown();
+            }
+        }
+
+        async function fetchTableListForDropdown() {
+            try {
+                const res = await fetch(`${API_BASE}/api/tables`);
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    const options = data.tables.map(t => `<option value="${t.table_name}">${t.table_name} (${t.source_type})</option>`).join('');
+                    const defaultOpt = '<option value="">Select table...</option>';
+                    document.getElementById('link-source-table').innerHTML = defaultOpt + options;
+                    document.getElementById('link-target-table').innerHTML = defaultOpt + options;
+                }
+            } catch (e) {
+                console.error("Failed to fetch tables for dropdown", e);
+            }
+        }
+
+        async function handleLinkTables() {
+            const source = document.getElementById('link-source-table').value;
+            const target = document.getElementById('link-target-table').value;
+            const logDiv = document.getElementById('link-result-log');
+            
+            if (!source || !target) {
+                alert("Please select both source and target tables.");
+                return;
+            }
+
+            if (source === target) {
+                alert("Source and Target cannot be the same.");
+                return;
+            }
+
+            logDiv.classList.remove('hidden');
+            logDiv.innerHTML = `<span class="text-blue-400"><i class="fas fa-spinner fa-spin mr-1"></i> Verifying consistency (EXCEPT check)...</span>`;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/link_tables`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ source_table: source, target_table: target })
+                });
+                const result = await res.json();
+
+                if (result.status === 'success') {
+                    logDiv.innerHTML = `
+                        <div class="text-green-400 mb-1"><i class="fas fa-check-circle mr-1"></i> Success!</div>
+                        <div class="text-gray-300">${result.message}</div>
+                        <div class="text-gray-500 mt-1">Cache Path: ${result.cache_path}</div>
+                    `;
+                } else if (result.status === 'diff') {
+                    logDiv.innerHTML = `
+                        <div class="text-yellow-400 mb-1"><i class="fas fa-exclamation-triangle mr-1"></i> Consistency Check Failed</div>
+                        <div class="text-gray-300">${result.message}</div>
+                        <div class="text-gray-500 mt-1">Tables are not identical. Link aborted.</div>
+                    `;
+                } else {
+                    logDiv.innerHTML = `
+                        <div class="text-red-400 mb-1"><i class="fas fa-times-circle mr-1"></i> Error</div>
+                        <div class="text-gray-300">${result.message}</div>
+                    `;
+                }
+            } catch (e) {
+                logDiv.innerHTML = `<div class="text-red-500">Request Failed: ${e.message}</div>`;
+            }
+        }
+
     </script>
 </body>
 </html>

@@ -125,7 +125,7 @@ impl SqlDialect for SqliteDialect {
                 Ok(format!("({} {} {})", left_sql, op, right_sql))
             }
             Expr::Column(col) => Ok(self.quote_identifier(&col.name)),
-            Expr::Literal(scalar_value) => match scalar_value {
+            Expr::Literal(scalar_value, _) => match scalar_value {
                 ScalarValue::Utf8(Some(s)) => Ok(format!("'{}'", s.replace("'", "''"))),
                 ScalarValue::Int64(Some(v)) => Ok(v.to_string()),
                 ScalarValue::Float64(Some(v)) => Ok(v.to_string()),
@@ -221,38 +221,55 @@ impl OracleDialect {
             use_legacy_pagination,
         }
     }
-}
 
-impl SqlDialect for OracleDialect {
-    fn name(&self) -> &str {
-        "oracle"
+    /// 生成带参数的 SQL
+    ///
+    /// **实现方案**:
+    /// 遍历 Expr 树，将 Literal 替换为占位符 (`:1`, `:2` 等)，并将实际值收集到 `params` 向量中。
+    ///
+    /// **调用链路**:
+    /// - 被 `OracleTable::supports_filters_pushdown` 和 `scan` 调用。
+    ///
+    /// **关键问题点**:
+    /// - SQL 注入防护：通过参数化查询防止注入。
+    // New method for parameterized query generation
+    pub fn expr_to_sql_with_params(&self, expr: &Expr) -> Result<(String, Vec<ScalarValue>)> {
+        let mut params = Vec::new();
+        let sql = self.expr_to_sql_internal(expr, Some(&mut params))?;
+        Ok((sql, params))
     }
 
-    fn quote_identifier(&self, ident: &str) -> String {
-        format!("\"{}\"", ident.to_uppercase()) // Oracle identifiers are usually uppercase
-    }
-
-    fn expr_to_sql(&self, expr: &Expr) -> Result<String> {
+    fn expr_to_sql_internal(
+        &self,
+        expr: &Expr,
+        mut params: Option<&mut Vec<ScalarValue>>,
+    ) -> Result<String> {
         match expr {
             Expr::BinaryExpr(datafusion::logical_expr::BinaryExpr { left, op, right }) => {
-                let left_sql = self.expr_to_sql(left)?;
-                let right_sql = self.expr_to_sql(right)?;
+                // Pass reborrowed mutable reference if present
+                let left_sql = self.expr_to_sql_internal(left, params.as_deref_mut())?;
+                let right_sql = self.expr_to_sql_internal(right, params.as_deref_mut())?;
                 Ok(format!("({} {} {})", left_sql, op, right_sql))
             }
             Expr::Column(col) => Ok(self.quote_identifier(&col.name)),
-            Expr::Literal(scalar_value) => {
-                match scalar_value {
-                    ScalarValue::Utf8(Some(s)) => Ok(format!("'{}'", s.replace("'", "''"))),
-                    ScalarValue::Int64(Some(v)) => Ok(v.to_string()),
-                    ScalarValue::Float64(Some(v)) => Ok(v.to_string()),
-                    // Oracle doesn't have BOOLEAN type in SQL (only PL/SQL), usually uses 1/0 or 'Y'/'N'
-                    ScalarValue::Boolean(Some(v)) => {
-                        Ok(if *v { "1".to_string() } else { "0".to_string() })
+            Expr::Literal(scalar_value, _) => {
+                if let Some(p) = params {
+                    p.push(scalar_value.clone());
+                    Ok(format!(":{}", p.len()))
+                } else {
+                    match scalar_value {
+                        ScalarValue::Utf8(Some(s)) => Ok(format!("'{}'", s.replace("'", "''"))),
+                        ScalarValue::Int64(Some(v)) => Ok(v.to_string()),
+                        ScalarValue::Int32(Some(v)) => Ok(v.to_string()), // Added Int32 support
+                        ScalarValue::Float64(Some(v)) => Ok(v.to_string()),
+                        ScalarValue::Boolean(Some(v)) => {
+                            Ok(if *v { "1".to_string() } else { "0".to_string() })
+                        }
+                        _ => Err(DataFusionError::Execution(format!(
+                            "Unsupported literal: {:?}",
+                            scalar_value
+                        ))),
                     }
-                    _ => Err(DataFusionError::Execution(format!(
-                        "Unsupported literal: {:?}",
-                        scalar_value
-                    ))),
                 }
             }
             Expr::Like(datafusion::logical_expr::Like {
@@ -267,17 +284,17 @@ impl SqlDialect for OracleDialect {
                         "Case-insensitive LIKE not supported for Oracle yet".to_string(),
                     ));
                 }
-                let expr_sql = self.expr_to_sql(expr)?;
-                let pattern_sql = self.expr_to_sql(pattern)?;
+                let expr_sql = self.expr_to_sql_internal(expr, params.as_deref_mut())?;
+                let pattern_sql = self.expr_to_sql_internal(pattern, params.as_deref_mut())?;
                 let op = if *negated { "NOT LIKE" } else { "LIKE" };
                 Ok(format!("{} {} {}", expr_sql, op, pattern_sql))
             }
             Expr::IsNull(expr) => {
-                let expr_sql = self.expr_to_sql(expr)?;
+                let expr_sql = self.expr_to_sql_internal(expr, params.as_deref_mut())?;
                 Ok(format!("{} IS NULL", expr_sql))
             }
             Expr::IsNotNull(expr) => {
-                let expr_sql = self.expr_to_sql(expr)?;
+                let expr_sql = self.expr_to_sql_internal(expr, params.as_deref_mut())?;
                 Ok(format!("{} IS NOT NULL", expr_sql))
             }
             Expr::InList(InList {
@@ -285,18 +302,38 @@ impl SqlDialect for OracleDialect {
                 list,
                 negated,
             }) => {
-                let expr_sql = self.expr_to_sql(expr)?;
+                let expr_sql = self.expr_to_sql_internal(expr, params.as_deref_mut())?;
                 let list_sql = list
                     .iter()
-                    .map(|e| self.expr_to_sql(e))
+                    .map(|e| self.expr_to_sql_internal(e, params.as_deref_mut()))
                     .collect::<Result<Vec<_>>>()?
                     .join(", ");
                 let op = if *negated { "NOT IN" } else { "IN" };
                 Ok(format!("{} {} ({})", expr_sql, op, list_sql))
             }
             Expr::Not(expr) => {
-                let expr_sql = self.expr_to_sql(expr)?;
+                let expr_sql = self.expr_to_sql_internal(expr, params.as_deref_mut())?;
                 Ok(format!("NOT ({})", expr_sql))
+            }
+            Expr::Case(datafusion::logical_expr::Case {
+                expr,
+                when_then_expr,
+                else_expr,
+            }) => {
+                let mut sql = "CASE".to_string();
+                if let Some(e) = expr {
+                    sql.push_str(&format!(" {}", self.expr_to_sql_internal(e, params.as_deref_mut())?));
+                }
+                for (when, then) in when_then_expr {
+                    let when_sql = self.expr_to_sql_internal(when, params.as_deref_mut())?;
+                    let then_sql = self.expr_to_sql_internal(then, params.as_deref_mut())?;
+                    sql.push_str(&format!(" WHEN {} THEN {}", when_sql, then_sql));
+                }
+                if let Some(e) = else_expr {
+                    sql.push_str(&format!(" ELSE {}", self.expr_to_sql_internal(e, params.as_deref_mut())?));
+                }
+                sql.push_str(" END");
+                Ok(sql)
             }
             _ => Err(DataFusionError::Execution(format!(
                 "Unsupported expression for Oracle: {:?}",
@@ -304,7 +341,30 @@ impl SqlDialect for OracleDialect {
             ))),
         }
     }
+}
 
+impl SqlDialect for OracleDialect {
+    fn name(&self) -> &str {
+        "oracle"
+    }
+
+    fn quote_identifier(&self, ident: &str) -> String {
+        format!("\"{}\"", ident.to_uppercase()) // Oracle identifiers are usually uppercase
+    }
+
+    fn expr_to_sql(&self, expr: &Expr) -> Result<String> {
+        self.expr_to_sql_internal(expr, None)
+    }
+
+    /// 生成分页 SQL
+    ///
+    /// **实现方案**:
+    /// 根据 `use_legacy_pagination` 字段决定生成策略：
+    /// - **Legacy (Oracle 11g-)**: 使用 `ROWNUM` 嵌套查询 (`SELECT * FROM (SELECT t.*, ROWNUM rnum ...`)。
+    /// - **Modern (Oracle 12c+)**: 使用 `OFFSET ... FETCH NEXT ...` 语法。
+    ///
+    /// **关键问题点**:
+    /// - 版本兼容性：默认应检测数据库版本或由用户配置。
     fn generate_pagination_sql(
         &self,
         select_cols: &str,
@@ -341,5 +401,69 @@ impl SqlDialect for OracleDialect {
                 select_cols, table_name, where_part, offset, limit
             )
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use datafusion::logical_expr::{col, lit, case};
+    use datafusion::scalar::ScalarValue;
+
+    #[test]
+    fn test_oracle_expr_to_sql_parameterization() {
+        let dialect = OracleDialect::new(false);
+
+        // Test Case 1: Basic Comparison with Parameter
+        // col("id") = 1
+        let expr = col("id").eq(lit(1));
+        
+        // We verify that the method is implemented and returns correct parameterized SQL
+        let result = dialect.expr_to_sql_with_params(&expr);
+        
+        assert!(result.is_ok(), "Expected success, got error: {:?}", result.err());
+        let (sql, params) = result.unwrap();
+        assert_eq!(sql, "(\"ID\" = :1)");
+        assert_eq!(params.len(), 1);
+        match &params[0] {
+            ScalarValue::Int32(Some(v)) => assert_eq!(*v, 1),
+            _ => panic!("Expected Int32 parameter, got {:?}", params[0]),
+        }
+    }
+
+    #[test]
+    fn test_oracle_expr_to_sql_m2_case_when() {
+        let dialect = OracleDialect::new(false);
+
+        // Test Case 2: CASE WHEN (M2 Requirement)
+        // CASE WHEN status = 1 THEN 'active' ELSE 'inactive' END
+        let expr = case(col("status").eq(lit(1)))
+            .when(lit(true), lit("active")) // Simplified for test construction
+            .otherwise(lit("inactive"))
+            .unwrap();
+
+        // Check if expr_to_sql handles it -> Expect success now
+        let result = dialect.expr_to_sql(&expr);
+        assert!(result.is_ok(), "Expected CASE WHEN support, got error: {:?}", result.err());
+        let sql = result.unwrap();
+        // CASE ("STATUS" = 1) WHEN true THEN 'active' ELSE 'inactive' END
+        assert!(sql.starts_with("CASE"));
+        assert!(sql.contains("WHEN"));
+        assert!(sql.contains("THEN 'active'"));
+        assert!(sql.contains("ELSE 'inactive'"));
+        assert!(sql.ends_with("END"));
+    }
+
+    #[test]
+    fn test_oracle_expr_to_sql_m3_window_function() {
+        let dialect = OracleDialect::new(false);
+        // Note: Constructing WindowFunction expr is complex in unit test without context, 
+        // using a placeholder unsupported expr for now to verify fallback logic.
+        // We use a Cast expr which might be M3 or M2 depending on complexity.
+        let expr = datafusion::logical_expr::cast(col("price"), datafusion::arrow::datatypes::DataType::Utf8);
+        
+        // Expect failure
+        let result = dialect.expr_to_sql(&expr);
+        assert!(result.is_err());
     }
 }

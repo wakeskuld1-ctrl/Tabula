@@ -1,0 +1,3 @@
+{
+    "sql": "SELECT w.w_id, w.w_name, d.d_id, d.d_name, h.h_date, h.h_amount FROM tpcc.bmsql_warehouse w JOIN tpcc.bmsql_district d ON d.d_w_id = w.w_id JOIN tpcc.bmsql_history h ON h.h_w_id = w.w_id AND h.h_d_id = d.d_id"
+}

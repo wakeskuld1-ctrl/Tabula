@@ -11,6 +11,15 @@ use datafusion::error::{DataFusionError, Result as DFResult};
 use datafusion::prelude::SessionContext;
 use std::sync::Arc;
 
+/// Excel 数据源实现
+///
+/// **实现方案**:
+/// 使用 `calamine` 库读取 Excel 文件 (.xlsx)。
+/// 将 Excel 数据转换为 Arrow `RecordBatch`，并注册为 DataFusion 的 `MemTable`。
+///
+/// **关键问题点**:
+/// - 内存占用：目前将整个 Sheet 加载到内存 (`MemTable`)，处理大文件时可能 OOM。
+/// - 类型推断：需要扫描数据来推断列类型（Int, Float, String, Boolean）。
 pub struct ExcelDataSource {
     name: String,
     path: String,
@@ -26,6 +35,10 @@ impl ExcelDataSource {
         }
     }
 
+    /// 获取 Excel 文件中的所有 Sheet 名称
+    ///
+    /// **实现方案**:
+    /// 打开 Workbook 并调用 `sheet_names()`。
     #[allow(dead_code)]
     pub fn get_sheet_names(path: &str) -> DFResult<Vec<String>> {
         let workbook: Xlsx<_> = open_workbook(path)
@@ -33,6 +46,20 @@ impl ExcelDataSource {
         Ok(workbook.sheet_names().to_vec())
     }
 
+    /// 加载 Excel 数据并转换为 MemTable
+    ///
+    /// **实现方案**:
+    /// 1. 读取指定 Sheet 的 Range。
+    /// 2. **提取表头**: 读取第一行作为列名，并进行去重处理（自动添加后缀 _1, _2 等）。
+    /// 3. **推断 Schema**: 扫描所有行，推断每一列的数据类型。
+    ///    - 优先级：Null -> 具体类型 (Int/Float/Bool) -> String (Fallback)。
+    ///    - 兼容性：如果列中混合了 Int 和 Float，升级为 Float。如果混合了其他类型，回退为 String。
+    /// 4. **构建 Arrow 数组**: 根据推断的 Schema，遍历数据并填充到 Arrow Builder 中。
+    /// 5. **创建 MemTable**: 将生成的 RecordBatch 封装为 `MemTable`。
+    ///
+    /// **关键问题点**:
+    /// - 表头去重：DataFusion 不支持重复列名。
+    /// - 脏数据处理：空单元格或类型不匹配的单元格需正确处理为 Null 或转换类型。
     pub fn load_table(&self) -> DFResult<Arc<MemTable>> {
         let path = &self.path;
         let sheet_name = &self.sheet_name;
