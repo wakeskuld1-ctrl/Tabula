@@ -2487,7 +2487,8 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
           addPendingFormulaKeys(pendingKeySet);
       }
 
-      try {
+      // ### 变更记录
+      // - 2026-03-14: 原因=多余 try 导致语法错误; 目的=恢复正常语法结构
           if (typeof originalInput === "string" && originalInput.trim().startsWith("=")) {
               const parsed = parseAggregateFormula(originalInput.trim());
               const rangeInfo = getRangeInfo(parsed);
