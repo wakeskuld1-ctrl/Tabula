@@ -228,6 +228,33 @@ function buildFormulaDocsTable(functionNames) {
 }
 
 // ### 变更记录
+// - 2026-03-15 00:35: 原因=前端提示需要结构化JSON; 目的=提供统一数据源
+// - 2026-03-15 00:35: 原因=与README同源; 目的=避免双份维护
+function buildFormulaHelpData() {
+  const functionNames = getRegisteredFunctions();
+  return functionNames.map((name) => {
+    const params = getFunctionParameters(name);
+    const usage = buildFormulaUsage(name, params);
+    return {
+      name,
+      syntax: usage.syntax,
+      example: usage.example,
+      paramNotes: usage.paramNotes,
+      purpose: usage.purpose,
+      note: usage.note,
+    };
+  });
+}
+
+// ### 变更记录
+// - 2026-03-15 00:35: 原因=需要稳定JSON格式; 目的=便于CI对比
+// - 2026-03-15 00:35: 原因=避免编码不一致; 目的=统一UTF-8输出
+function buildFormulaHelpJson() {
+  const data = buildFormulaHelpData();
+  return `${JSON.stringify(data, null, 2)}\n`;
+}
+
+// ### 变更记录
 // - 2026-03-14 22:05: 原因=README 注入需要完整区块; 目的=集中输出标记块内容
 // - 2026-03-14 22:05: 原因=函数列表为空时需提示; 目的=避免 README 空白
 // - 2026-03-14 23:05: 原因=表头新增列; 目的=保持空表结构一致
@@ -297,6 +324,37 @@ function writeFormulaDocsToFile(filePath) {
 }
 
 // ### 变更记录
+// - 2026-03-15 00:35: 原因=公式提示JSON需要固定输出位置; 目的=提供默认路径
+// - 2026-03-15 00:35: 原因=前端读取依赖src目录; 目的=输出到src/data
+function getDefaultFormulaHelpPath() {
+  return path.resolve(__dirname, "..", "src", "data", "formula_help.json");
+}
+
+// ### 变更记录
+// - 2026-03-15 00:35: 原因=生成JSON文件; 目的=供UI直接import
+// - 2026-03-15 00:35: 原因=目录可能不存在; 目的=自动创建
+function writeFormulaHelpJsonToFile(filePath) {
+  const dir = path.dirname(filePath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  const json = buildFormulaHelpJson();
+  fs.writeFileSync(filePath, json, "utf8");
+}
+
+// ### 变更记录
+// - 2026-03-15 00:35: 原因=CI需要校验JSON一致性; 目的=提供只读比对能力
+// - 2026-03-15 00:35: 原因=避免空文件误判; 目的=基于生成结果对比
+function isFormulaHelpJsonUpToDate(filePath) {
+  if (!fs.existsSync(filePath)) {
+    return false;
+  }
+  const raw = fs.readFileSync(filePath, "utf8");
+  const next = buildFormulaHelpJson();
+  return raw === next;
+}
+
+// ### 变更记录
 // - 2026-03-14 22:20: 原因=两份 README 需要同步; 目的=提供默认路径列表
 // - 2026-03-14 22:20: 原因=脚本应可独立运行; 目的=自动定位根与前端 README
 function getDefaultReadmePaths() {
@@ -316,6 +374,7 @@ function runCli() {
   const targets = args.filter((arg) => arg !== "--check");
   const files = targets.length > 0 ? targets : getDefaultReadmePaths();
   let hasDiff = false;
+  const formulaHelpPath = getDefaultFormulaHelpPath();
 
   files.forEach((filePath) => {
     if (checkMode) {
@@ -335,6 +394,22 @@ function runCli() {
     }
   });
 
+  if (checkMode) {
+    const jsonOk = isFormulaHelpJsonUpToDate(formulaHelpPath);
+    if (!jsonOk) {
+      hasDiff = true;
+      // eslint-disable-next-line no-console
+      console.error(`[formula-docs] out of date: ${formulaHelpPath}`);
+    } else {
+      // eslint-disable-next-line no-console
+      console.log(`[formula-docs] ok: ${formulaHelpPath}`);
+    }
+  } else {
+    writeFormulaHelpJsonToFile(formulaHelpPath);
+    // eslint-disable-next-line no-console
+    console.log(`[formula-docs] updated ${formulaHelpPath}`);
+  }
+
   if (checkMode && hasDiff) {
     process.exitCode = 1;
   }
@@ -344,6 +419,8 @@ function runCli() {
 // - 2026-03-14 22:05: 原因=测试与脚本复用; 目的=统一导出入口
 module.exports = {
   buildFormulaDocsSection,
+  buildFormulaHelpData,
+  buildFormulaHelpJson,
   getRegisteredFunctions,
   buildFormulaDocsTable,
   FORMULA_DOCS_START,
@@ -351,6 +428,9 @@ module.exports = {
   buildInjectedContent,
   writeFormulaDocsToFile,
   getDefaultReadmePaths,
+  getDefaultFormulaHelpPath,
+  writeFormulaHelpJsonToFile,
+  isFormulaHelpJsonUpToDate,
   isReadmeUpToDate,
   runCli,
 };

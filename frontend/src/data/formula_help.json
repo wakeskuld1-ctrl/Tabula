@@ -1,0 +1,3186 @@
+[
+  {
+    "name": "ABS",
+    "syntax": "ABS(number)",
+    "example": "=ABS(1)",
+    "paramNotes": "number/数值",
+    "purpose": "数学计算与取整 / Math and rounding",
+    "note": "—"
+  },
+  {
+    "name": "ACOS",
+    "syntax": "ACOS(number)",
+    "example": "=ACOS(1)",
+    "paramNotes": "number/数值",
+    "purpose": "三角函数与角度转换 / Trigonometry",
+    "note": "—"
+  },
+  {
+    "name": "ACOSH",
+    "syntax": "ACOSH(number)",
+    "example": "=ACOSH(1)",
+    "paramNotes": "number/数值",
+    "purpose": "三角函数与角度转换 / Trigonometry",
+    "note": "—"
+  },
+  {
+    "name": "ACOT",
+    "syntax": "ACOT(number)",
+    "example": "=ACOT(1)",
+    "paramNotes": "number/数值",
+    "purpose": "三角函数与角度转换 / Trigonometry",
+    "note": "—"
+  },
+  {
+    "name": "ACOTH",
+    "syntax": "ACOTH(number)",
+    "example": "=ACOTH(1)",
+    "paramNotes": "number/数值",
+    "purpose": "三角函数与角度转换 / Trigonometry",
+    "note": "—"
+  },
+  {
+    "name": "ADDRESS",
+    "syntax": "ADDRESS(number1, number2, [number3], [condition4], [text5])",
+    "example": "=ADDRESS(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3 (optional/可选), condition4/条件4 (optional/可选), text5/文本5 (optional/可选)",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "AND",
+    "syntax": "AND(condition1)",
+    "example": "=AND(TRUE)",
+    "paramNotes": "condition1/条件1",
+    "purpose": "逻辑判断与条件处理 / Logical conditions",
+    "note": "—"
+  },
+  {
+    "name": "ARABIC",
+    "syntax": "ARABIC(text)",
+    "example": "=ARABIC(\"text\")",
+    "paramNotes": "text/文本",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "ARRAY_CONSTRAIN",
+    "syntax": "ARRAY_CONSTRAIN(range1, integer2, integer3)",
+    "example": "=ARRAY_CONSTRAIN(A1:A5, 1, 1)",
+    "paramNotes": "range1/范围1, integer2/整数2, integer3/整数3",
+    "purpose": "数组与矩阵处理 / Array and matrix operations",
+    "note": "—"
+  },
+  {
+    "name": "ARRAYFORMULA",
+    "syntax": "ARRAYFORMULA(value)",
+    "example": "=ARRAYFORMULA(1)",
+    "paramNotes": "value/值",
+    "purpose": "逻辑判断与条件处理 / Logical conditions",
+    "note": "—"
+  },
+  {
+    "name": "ASIN",
+    "syntax": "ASIN(number)",
+    "example": "=ASIN(1)",
+    "paramNotes": "number/数值",
+    "purpose": "三角函数与角度转换 / Trigonometry",
+    "note": "—"
+  },
+  {
+    "name": "ASINH",
+    "syntax": "ASINH(number)",
+    "example": "=ASINH(1)",
+    "paramNotes": "number/数值",
+    "purpose": "三角函数与角度转换 / Trigonometry",
+    "note": "—"
+  },
+  {
+    "name": "ATAN",
+    "syntax": "ATAN(number)",
+    "example": "=ATAN(1)",
+    "paramNotes": "number/数值",
+    "purpose": "三角函数与角度转换 / Trigonometry",
+    "note": "—"
+  },
+  {
+    "name": "ATAN2",
+    "syntax": "ATAN2(number1, number2)",
+    "example": "=ATAN2(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "三角函数与角度转换 / Trigonometry",
+    "note": "—"
+  },
+  {
+    "name": "ATANH",
+    "syntax": "ATANH(number)",
+    "example": "=ATANH(1)",
+    "paramNotes": "number/数值",
+    "purpose": "三角函数与角度转换 / Trigonometry",
+    "note": "—"
+  },
+  {
+    "name": "AVEDEV",
+    "syntax": "AVEDEV(value)",
+    "example": "=AVEDEV(1)",
+    "paramNotes": "value/值",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "AVERAGE",
+    "syntax": "AVERAGE(range)",
+    "example": "=AVERAGE(1)",
+    "paramNotes": "range/范围",
+    "purpose": "计算范围内数值平均值 / Average values in a range",
+    "note": "—"
+  },
+  {
+    "name": "AVERAGEA",
+    "syntax": "AVERAGEA(value)",
+    "example": "=AVERAGEA(1)",
+    "paramNotes": "value/值",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "AVERAGEIF",
+    "syntax": "AVERAGEIF(range, criteria, [average_range])",
+    "example": "=AVERAGEIF(A1:A5, 1)",
+    "paramNotes": "range/范围, criteria/条件, average_range/平均范围 (optional/可选)",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "BASE",
+    "syntax": "BASE(number1, number2, [number3])",
+    "example": "=BASE(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3 (optional/可选)",
+    "purpose": "进制与位运算 / Base and bitwise operations",
+    "note": "—"
+  },
+  {
+    "name": "BESSELI",
+    "syntax": "BESSELI(number1, number2)",
+    "example": "=BESSELI(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "统计分布函数 / Statistical distributions",
+    "note": "—"
+  },
+  {
+    "name": "BESSELJ",
+    "syntax": "BESSELJ(number1, number2)",
+    "example": "=BESSELJ(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "统计分布函数 / Statistical distributions",
+    "note": "—"
+  },
+  {
+    "name": "BESSELK",
+    "syntax": "BESSELK(number1, number2)",
+    "example": "=BESSELK(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "统计分布函数 / Statistical distributions",
+    "note": "—"
+  },
+  {
+    "name": "BESSELY",
+    "syntax": "BESSELY(number1, number2)",
+    "example": "=BESSELY(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "统计分布函数 / Statistical distributions",
+    "note": "—"
+  },
+  {
+    "name": "BETA.DIST",
+    "syntax": "BETA.DIST(number1, number2, number3, condition4, number5, number6)",
+    "example": "=BETA.DIST(1, 1, 1, TRUE, 1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3, condition4/条件4, number5/数值5, number6/数值6",
+    "purpose": "统计分布函数 / Statistical distributions",
+    "note": "—"
+  },
+  {
+    "name": "BETA.INV",
+    "syntax": "BETA.INV(number1, number2, number3, number4, number5)",
+    "example": "=BETA.INV(1, 1, 1, 1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3, number4/数值4, number5/数值5",
+    "purpose": "统计分布函数 / Statistical distributions",
+    "note": "—"
+  },
+  {
+    "name": "BETADIST",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "BETAINV",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "BIN2DEC",
+    "syntax": "BIN2DEC(text)",
+    "example": "=BIN2DEC(\"text\")",
+    "paramNotes": "text/文本",
+    "purpose": "进制与位运算 / Base and bitwise operations",
+    "note": "—"
+  },
+  {
+    "name": "BIN2HEX",
+    "syntax": "BIN2HEX(text1, [number2])",
+    "example": "=BIN2HEX(\"text\")",
+    "paramNotes": "text1/文本1, number2/数值2 (optional/可选)",
+    "purpose": "进制与位运算 / Base and bitwise operations",
+    "note": "—"
+  },
+  {
+    "name": "BIN2OCT",
+    "syntax": "BIN2OCT(text1, [number2])",
+    "example": "=BIN2OCT(\"text\")",
+    "paramNotes": "text1/文本1, number2/数值2 (optional/可选)",
+    "purpose": "进制与位运算 / Base and bitwise operations",
+    "note": "—"
+  },
+  {
+    "name": "BINOM.DIST",
+    "syntax": "BINOM.DIST(number1, number2, number3, condition4)",
+    "example": "=BINOM.DIST(1, 1, 1, TRUE)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3, condition4/条件4",
+    "purpose": "统计分布函数 / Statistical distributions",
+    "note": "—"
+  },
+  {
+    "name": "BINOM.INV",
+    "syntax": "BINOM.INV(number1, number2, number3)",
+    "example": "=BINOM.INV(1, 1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3",
+    "purpose": "统计分布函数 / Statistical distributions",
+    "note": "—"
+  },
+  {
+    "name": "BINOMDIST",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "BITAND",
+    "syntax": "BITAND(integer1, integer2)",
+    "example": "=BITAND(1, 1)",
+    "paramNotes": "integer1/整数1, integer2/整数2",
+    "purpose": "逻辑判断与条件处理 / Logical conditions",
+    "note": "—"
+  },
+  {
+    "name": "BITLSHIFT",
+    "syntax": "BITLSHIFT(integer1, integer2)",
+    "example": "=BITLSHIFT(1, 1)",
+    "paramNotes": "integer1/整数1, integer2/整数2",
+    "purpose": "逻辑判断与条件处理 / Logical conditions",
+    "note": "—"
+  },
+  {
+    "name": "BITOR",
+    "syntax": "BITOR(integer1, integer2)",
+    "example": "=BITOR(1, 1)",
+    "paramNotes": "integer1/整数1, integer2/整数2",
+    "purpose": "逻辑判断与条件处理 / Logical conditions",
+    "note": "—"
+  },
+  {
+    "name": "BITRSHIFT",
+    "syntax": "BITRSHIFT(integer1, integer2)",
+    "example": "=BITRSHIFT(1, 1)",
+    "paramNotes": "integer1/整数1, integer2/整数2",
+    "purpose": "逻辑判断与条件处理 / Logical conditions",
+    "note": "—"
+  },
+  {
+    "name": "BITXOR",
+    "syntax": "BITXOR(integer1, integer2)",
+    "example": "=BITXOR(1, 1)",
+    "paramNotes": "integer1/整数1, integer2/整数2",
+    "purpose": "逻辑判断与条件处理 / Logical conditions",
+    "note": "—"
+  },
+  {
+    "name": "CEILING",
+    "syntax": "CEILING(number1, number2)",
+    "example": "=CEILING(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "数学计算与取整 / Math and rounding",
+    "note": "—"
+  },
+  {
+    "name": "CEILING.MATH",
+    "syntax": "CEILING.MATH(number1, number2, number3)",
+    "example": "=CEILING.MATH(1, 1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3",
+    "purpose": "数学计算与取整 / Math and rounding",
+    "note": "—"
+  },
+  {
+    "name": "CEILING.PRECISE",
+    "syntax": "CEILING.PRECISE(number1, number2)",
+    "example": "=CEILING.PRECISE(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "数学计算与取整 / Math and rounding",
+    "note": "—"
+  },
+  {
+    "name": "CHAR",
+    "syntax": "CHAR(number)",
+    "example": "=CHAR(1)",
+    "paramNotes": "number/数值",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "CHIDIST",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "CHIDISTRT",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "CHIINV",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "CHIINVRT",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "CHISQ.DIST",
+    "syntax": "CHISQ.DIST(number1, number2, condition3)",
+    "example": "=CHISQ.DIST(1, 1, TRUE)",
+    "paramNotes": "number1/数值1, number2/数值2, condition3/条件3",
+    "purpose": "统计分布函数 / Statistical distributions",
+    "note": "—"
+  },
+  {
+    "name": "CHISQ.DIST.RT",
+    "syntax": "CHISQ.DIST.RT(number1, number2)",
+    "example": "=CHISQ.DIST.RT(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "统计分布函数 / Statistical distributions",
+    "note": "—"
+  },
+  {
+    "name": "CHISQ.INV",
+    "syntax": "CHISQ.INV(number1, number2)",
+    "example": "=CHISQ.INV(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "统计分布函数 / Statistical distributions",
+    "note": "—"
+  },
+  {
+    "name": "CHISQ.INV.RT",
+    "syntax": "CHISQ.INV.RT(number1, number2)",
+    "example": "=CHISQ.INV.RT(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "统计分布函数 / Statistical distributions",
+    "note": "—"
+  },
+  {
+    "name": "CHISQ.TEST",
+    "syntax": "CHISQ.TEST(range1, range2)",
+    "example": "=CHISQ.TEST(A1:A5, A1:A5)",
+    "paramNotes": "range1/范围1, range2/范围2",
+    "purpose": "统计分布函数 / Statistical distributions",
+    "note": "—"
+  },
+  {
+    "name": "CHITEST",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "CHOOSE",
+    "syntax": "CHOOSE(integer1, value2)",
+    "example": "=CHOOSE(1, 1)",
+    "paramNotes": "integer1/整数1, value2/值2",
+    "purpose": "逻辑判断与条件处理 / Logical conditions",
+    "note": "—"
+  },
+  {
+    "name": "CLEAN",
+    "syntax": "CLEAN(text)",
+    "example": "=CLEAN(\"text\")",
+    "paramNotes": "text/文本",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "CODE",
+    "syntax": "CODE(text)",
+    "example": "=CODE(\"text\")",
+    "paramNotes": "text/文本",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "COLUMN",
+    "syntax": "COLUMN([value])",
+    "example": "=COLUMN()",
+    "paramNotes": "value/值 (optional/可选)",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "COLUMNS",
+    "syntax": "COLUMNS(range)",
+    "example": "=COLUMNS(A1:A5)",
+    "paramNotes": "range/范围",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "COMBIN",
+    "syntax": "COMBIN(number1, number2)",
+    "example": "=COMBIN(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "进制与位运算 / Base and bitwise operations",
+    "note": "—"
+  },
+  {
+    "name": "COMBINA",
+    "syntax": "COMBINA(number1, number2)",
+    "example": "=COMBINA(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "进制与位运算 / Base and bitwise operations",
+    "note": "—"
+  },
+  {
+    "name": "COMPLEX",
+    "syntax": "COMPLEX(number1, number2, text3)",
+    "example": "=COMPLEX(1, 1, \"text\")",
+    "paramNotes": "number1/数值1, number2/数值2, text3/文本3",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "CONCATENATE",
+    "syntax": "CONCATENATE(text1)",
+    "example": "=CONCATENATE(\"text\")",
+    "paramNotes": "text1/文本1",
+    "purpose": "文本处理 / Text processing",
+    "note": "—"
+  },
+  {
+    "name": "CONFIDENCE",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "CONFIDENCE.NORM",
+    "syntax": "CONFIDENCE.NORM(number1, number2, number3)",
+    "example": "=CONFIDENCE.NORM(1, 1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3",
+    "purpose": "逻辑判断与条件处理 / Logical conditions",
+    "note": "—"
+  },
+  {
+    "name": "CONFIDENCE.T",
+    "syntax": "CONFIDENCE.T(number1, number2, number3)",
+    "example": "=CONFIDENCE.T(1, 1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "CORREL",
+    "syntax": "CORREL(range1, range2)",
+    "example": "=CORREL(A1:A5, A1:A5)",
+    "paramNotes": "range1/范围1, range2/范围2",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "COS",
+    "syntax": "COS(number)",
+    "example": "=COS(1)",
+    "paramNotes": "number/数值",
+    "purpose": "三角函数与角度转换 / Trigonometry",
+    "note": "—"
+  },
+  {
+    "name": "COSH",
+    "syntax": "COSH(number)",
+    "example": "=COSH(1)",
+    "paramNotes": "number/数值",
+    "purpose": "三角函数与角度转换 / Trigonometry",
+    "note": "—"
+  },
+  {
+    "name": "COT",
+    "syntax": "COT(number)",
+    "example": "=COT(1)",
+    "paramNotes": "number/数值",
+    "purpose": "三角函数与角度转换 / Trigonometry",
+    "note": "—"
+  },
+  {
+    "name": "COTH",
+    "syntax": "COTH(number)",
+    "example": "=COTH(1)",
+    "paramNotes": "number/数值",
+    "purpose": "三角函数与角度转换 / Trigonometry",
+    "note": "—"
+  },
+  {
+    "name": "COUNT",
+    "syntax": "COUNT(range)",
+    "example": "=COUNT(1)",
+    "paramNotes": "range/范围",
+    "purpose": "统计范围内数值个数 / Count numeric values in a range",
+    "note": "—"
+  },
+  {
+    "name": "COUNTA",
+    "syntax": "COUNTA(value)",
+    "example": "=COUNTA(1)",
+    "paramNotes": "value/值",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "COUNTBLANK",
+    "syntax": "COUNTBLANK(value)",
+    "example": "=COUNTBLANK(1)",
+    "paramNotes": "value/值",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "COUNTIF",
+    "syntax": "COUNTIF(range, criteria)",
+    "example": "=COUNTIF(A1:A5, 1)",
+    "paramNotes": "range/范围, criteria/条件",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "COUNTIFS",
+    "syntax": "COUNTIFS(criteria_range1, criteria1)",
+    "example": "=COUNTIFS(A1:A5, 1)",
+    "paramNotes": "criteria_range1/条件范围1, criteria1/条件1",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "COUNTUNIQUE",
+    "syntax": "COUNTUNIQUE(value)",
+    "example": "=COUNTUNIQUE(1)",
+    "paramNotes": "value/值",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "COVAR",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "COVARIANCE.P",
+    "syntax": "COVARIANCE.P(range1, range2)",
+    "example": "=COVARIANCE.P(A1:A5, A1:A5)",
+    "paramNotes": "range1/范围1, range2/范围2",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "COVARIANCE.S",
+    "syntax": "COVARIANCE.S(range1, range2)",
+    "example": "=COVARIANCE.S(A1:A5, A1:A5)",
+    "paramNotes": "range1/范围1, range2/范围2",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "COVARIANCEP",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "COVARIANCES",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "CRITBINOM",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "CSC",
+    "syntax": "CSC(number)",
+    "example": "=CSC(1)",
+    "paramNotes": "number/数值",
+    "purpose": "三角函数与角度转换 / Trigonometry",
+    "note": "—"
+  },
+  {
+    "name": "CSCH",
+    "syntax": "CSCH(number)",
+    "example": "=CSCH(1)",
+    "paramNotes": "number/数值",
+    "purpose": "三角函数与角度转换 / Trigonometry",
+    "note": "—"
+  },
+  {
+    "name": "CUMIPMT",
+    "syntax": "CUMIPMT(number1, number2, number3, integer4, integer5, integer6)",
+    "example": "=CUMIPMT(1, 1, 1, 1, 1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3, integer4/整数4, integer5/整数5, integer6/整数6",
+    "purpose": "财务计算 / Financial calculations",
+    "note": "—"
+  },
+  {
+    "name": "CUMPRINC",
+    "syntax": "CUMPRINC(number1, number2, number3, integer4, integer5, integer6)",
+    "example": "=CUMPRINC(1, 1, 1, 1, 1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3, integer4/整数4, integer5/整数5, integer6/整数6",
+    "purpose": "财务计算 / Financial calculations",
+    "note": "—"
+  },
+  {
+    "name": "DATE",
+    "syntax": "DATE(year, month, day)",
+    "example": "=DATE(1, 1, 1)",
+    "paramNotes": "year/年, month/月, day/日",
+    "purpose": "生成日期值 / Create a date value",
+    "note": "—"
+  },
+  {
+    "name": "DATEDIF",
+    "syntax": "DATEDIF(number1, number2, text3)",
+    "example": "=DATEDIF(1, 1, \"text\")",
+    "paramNotes": "number1/数值1, number2/数值2, text3/文本3",
+    "purpose": "日期与时间处理 / Date and time handling",
+    "note": "—"
+  },
+  {
+    "name": "DATEVALUE",
+    "syntax": "DATEVALUE(text)",
+    "example": "=DATEVALUE(\"text\")",
+    "paramNotes": "text/文本",
+    "purpose": "日期与时间处理 / Date and time handling",
+    "note": "—"
+  },
+  {
+    "name": "DAY",
+    "syntax": "DAY(number)",
+    "example": "=DAY(1)",
+    "paramNotes": "number/数值",
+    "purpose": "日期与时间处理 / Date and time handling",
+    "note": "—"
+  },
+  {
+    "name": "DAYS",
+    "syntax": "DAYS(number1, number2)",
+    "example": "=DAYS(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "日期与时间处理 / Date and time handling",
+    "note": "—"
+  },
+  {
+    "name": "DAYS360",
+    "syntax": "DAYS360(number1, number2, condition3)",
+    "example": "=DAYS360(1, 1, TRUE)",
+    "paramNotes": "number1/数值1, number2/数值2, condition3/条件3",
+    "purpose": "日期与时间处理 / Date and time handling",
+    "note": "—"
+  },
+  {
+    "name": "DB",
+    "syntax": "DB(number1, number2, integer3, integer4, integer5)",
+    "example": "=DB(1, 1, 1, 1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, integer3/整数3, integer4/整数4, integer5/整数5",
+    "purpose": "财务计算 / Financial calculations",
+    "note": "—"
+  },
+  {
+    "name": "DDB",
+    "syntax": "DDB(number1, number2, integer3, number4, number5)",
+    "example": "=DDB(1, 1, 1, 1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, integer3/整数3, number4/数值4, number5/数值5",
+    "purpose": "财务计算 / Financial calculations",
+    "note": "—"
+  },
+  {
+    "name": "DEC2BIN",
+    "syntax": "DEC2BIN(number1, [number2])",
+    "example": "=DEC2BIN(1)",
+    "paramNotes": "number1/数值1, number2/数值2 (optional/可选)",
+    "purpose": "进制与位运算 / Base and bitwise operations",
+    "note": "—"
+  },
+  {
+    "name": "DEC2HEX",
+    "syntax": "DEC2HEX(number1, [number2])",
+    "example": "=DEC2HEX(1)",
+    "paramNotes": "number1/数值1, number2/数值2 (optional/可选)",
+    "purpose": "进制与位运算 / Base and bitwise operations",
+    "note": "—"
+  },
+  {
+    "name": "DEC2OCT",
+    "syntax": "DEC2OCT(number1, [number2])",
+    "example": "=DEC2OCT(1)",
+    "paramNotes": "number1/数值1, number2/数值2 (optional/可选)",
+    "purpose": "进制与位运算 / Base and bitwise operations",
+    "note": "—"
+  },
+  {
+    "name": "DECIMAL",
+    "syntax": "DECIMAL(text1, number2)",
+    "example": "=DECIMAL(\"text\", 1)",
+    "paramNotes": "text1/文本1, number2/数值2",
+    "purpose": "进制与位运算 / Base and bitwise operations",
+    "note": "—"
+  },
+  {
+    "name": "DEGREES",
+    "syntax": "DEGREES(number)",
+    "example": "=DEGREES(1)",
+    "paramNotes": "number/数值",
+    "purpose": "三角函数与角度转换 / Trigonometry",
+    "note": "—"
+  },
+  {
+    "name": "DELTA",
+    "syntax": "DELTA(number1, number2)",
+    "example": "=DELTA(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "DEVSQ",
+    "syntax": "DEVSQ(value)",
+    "example": "=DEVSQ(1)",
+    "paramNotes": "value/值",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "DOLLARDE",
+    "syntax": "DOLLARDE(number1, number2)",
+    "example": "=DOLLARDE(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "DOLLARFR",
+    "syntax": "DOLLARFR(number1, number2)",
+    "example": "=DOLLARFR(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "EDATE",
+    "syntax": "EDATE(number1, number2)",
+    "example": "=EDATE(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "日期与时间处理 / Date and time handling",
+    "note": "—"
+  },
+  {
+    "name": "EFFECT",
+    "syntax": "EFFECT(number1, number2)",
+    "example": "=EFFECT(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "EOMONTH",
+    "syntax": "EOMONTH(number1, number2)",
+    "example": "=EOMONTH(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "日期与时间处理 / Date and time handling",
+    "note": "—"
+  },
+  {
+    "name": "ERF",
+    "syntax": "ERF(number1, [number2])",
+    "example": "=ERF(1)",
+    "paramNotes": "number1/数值1, number2/数值2 (optional/可选)",
+    "purpose": "统计分布函数 / Statistical distributions",
+    "note": "—"
+  },
+  {
+    "name": "ERFC",
+    "syntax": "ERFC(number)",
+    "example": "=ERFC(1)",
+    "paramNotes": "number/数值",
+    "purpose": "统计分布函数 / Statistical distributions",
+    "note": "—"
+  },
+  {
+    "name": "EVEN",
+    "syntax": "EVEN(number)",
+    "example": "=EVEN(1)",
+    "paramNotes": "number/数值",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "EXACT",
+    "syntax": "EXACT(text1, text2)",
+    "example": "=EXACT(\"text\", \"text\")",
+    "paramNotes": "text1/文本1, text2/文本2",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "EXP",
+    "syntax": "EXP(number)",
+    "example": "=EXP(1)",
+    "paramNotes": "number/数值",
+    "purpose": "数学计算与取整 / Math and rounding",
+    "note": "—"
+  },
+  {
+    "name": "EXPON.DIST",
+    "syntax": "EXPON.DIST(number1, number2, condition3)",
+    "example": "=EXPON.DIST(1, 1, TRUE)",
+    "paramNotes": "number1/数值1, number2/数值2, condition3/条件3",
+    "purpose": "数学计算与取整 / Math and rounding",
+    "note": "—"
+  },
+  {
+    "name": "EXPONDIST",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "F.DIST",
+    "syntax": "F.DIST(number1, number2, number3, condition4)",
+    "example": "=F.DIST(1, 1, 1, TRUE)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3, condition4/条件4",
+    "purpose": "统计分布函数 / Statistical distributions",
+    "note": "—"
+  },
+  {
+    "name": "F.DIST.RT",
+    "syntax": "F.DIST.RT(number1, number2, number3)",
+    "example": "=F.DIST.RT(1, 1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3",
+    "purpose": "统计分布函数 / Statistical distributions",
+    "note": "—"
+  },
+  {
+    "name": "F.INV",
+    "syntax": "F.INV(number1, number2, number3)",
+    "example": "=F.INV(1, 1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "F.INV.RT",
+    "syntax": "F.INV.RT(number1, number2, number3)",
+    "example": "=F.INV.RT(1, 1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "F.TEST",
+    "syntax": "F.TEST(range1, range2)",
+    "example": "=F.TEST(A1:A5, A1:A5)",
+    "paramNotes": "range1/范围1, range2/范围2",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "FACT",
+    "syntax": "FACT(number)",
+    "example": "=FACT(1)",
+    "paramNotes": "number/数值",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "FACTDOUBLE",
+    "syntax": "FACTDOUBLE(number)",
+    "example": "=FACTDOUBLE(1)",
+    "paramNotes": "number/数值",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "FALSE",
+    "syntax": "FALSE()",
+    "example": "=FALSE()",
+    "paramNotes": "无参数 / No parameters",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "FDIST",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "FDISTRT",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "FILTER",
+    "syntax": "FILTER(range1, range2)",
+    "example": "=FILTER(A1:A5, A1:A5)",
+    "paramNotes": "range1/范围1, range2/范围2",
+    "purpose": "数组与矩阵处理 / Array and matrix operations",
+    "note": "—"
+  },
+  {
+    "name": "FIND",
+    "syntax": "FIND(find_text, within_text, start_num)",
+    "example": "=FIND(\"text\", \"text\", 1)",
+    "paramNotes": "find_text/查找文本, within_text/范围文本, start_num/起始位置",
+    "purpose": "文本处理 / Text processing",
+    "note": "—"
+  },
+  {
+    "name": "FINV",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "FINVRT",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "FISHER",
+    "syntax": "FISHER(number)",
+    "example": "=FISHER(1)",
+    "paramNotes": "number/数值",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "FISHERINV",
+    "syntax": "FISHERINV(number)",
+    "example": "=FISHERINV(1)",
+    "paramNotes": "number/数值",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "FLOOR",
+    "syntax": "FLOOR(number1, number2)",
+    "example": "=FLOOR(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "逻辑判断与条件处理 / Logical conditions",
+    "note": "—"
+  },
+  {
+    "name": "FLOOR.MATH",
+    "syntax": "FLOOR.MATH(number1, number2, number3)",
+    "example": "=FLOOR.MATH(1, 1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3",
+    "purpose": "逻辑判断与条件处理 / Logical conditions",
+    "note": "—"
+  },
+  {
+    "name": "FLOOR.PRECISE",
+    "syntax": "FLOOR.PRECISE(number1, number2)",
+    "example": "=FLOOR.PRECISE(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "逻辑判断与条件处理 / Logical conditions",
+    "note": "—"
+  },
+  {
+    "name": "FORMULATEXT",
+    "syntax": "FORMULATEXT(value)",
+    "example": "=FORMULATEXT(1)",
+    "paramNotes": "value/值",
+    "purpose": "文本处理 / Text processing",
+    "note": "—"
+  },
+  {
+    "name": "FTEST",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "FV",
+    "syntax": "FV(number1, number2, number3, number4, number5)",
+    "example": "=FV(1, 1, 1, 1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3, number4/数值4, number5/数值5",
+    "purpose": "财务计算 / Financial calculations",
+    "note": "—"
+  },
+  {
+    "name": "FVSCHEDULE",
+    "syntax": "FVSCHEDULE(number1, range2)",
+    "example": "=FVSCHEDULE(1, A1:A5)",
+    "paramNotes": "number1/数值1, range2/范围2",
+    "purpose": "财务计算 / Financial calculations",
+    "note": "—"
+  },
+  {
+    "name": "GAMMA",
+    "syntax": "GAMMA(number)",
+    "example": "=GAMMA(1)",
+    "paramNotes": "number/数值",
+    "purpose": "统计分布函数 / Statistical distributions",
+    "note": "—"
+  },
+  {
+    "name": "GAMMA.DIST",
+    "syntax": "GAMMA.DIST(number1, number2, number3, condition4)",
+    "example": "=GAMMA.DIST(1, 1, 1, TRUE)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3, condition4/条件4",
+    "purpose": "统计分布函数 / Statistical distributions",
+    "note": "—"
+  },
+  {
+    "name": "GAMMA.INV",
+    "syntax": "GAMMA.INV(number1, number2, number3)",
+    "example": "=GAMMA.INV(1, 1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3",
+    "purpose": "统计分布函数 / Statistical distributions",
+    "note": "—"
+  },
+  {
+    "name": "GAMMADIST",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "GAMMAINV",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "GAMMALN",
+    "syntax": "GAMMALN(number)",
+    "example": "=GAMMALN(1)",
+    "paramNotes": "number/数值",
+    "purpose": "数学计算与取整 / Math and rounding",
+    "note": "—"
+  },
+  {
+    "name": "GAMMALN.PRECISE",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "GAUSS",
+    "syntax": "GAUSS(number)",
+    "example": "=GAUSS(1)",
+    "paramNotes": "number/数值",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "GCD",
+    "syntax": "GCD(value)",
+    "example": "=GCD(1)",
+    "paramNotes": "value/值",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "GEOMEAN",
+    "syntax": "GEOMEAN(value)",
+    "example": "=GEOMEAN(1)",
+    "paramNotes": "value/值",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "HARMEAN",
+    "syntax": "HARMEAN(value)",
+    "example": "=HARMEAN(1)",
+    "paramNotes": "value/值",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "HEX2BIN",
+    "syntax": "HEX2BIN(text1, [number2])",
+    "example": "=HEX2BIN(\"text\")",
+    "paramNotes": "text1/文本1, number2/数值2 (optional/可选)",
+    "purpose": "进制与位运算 / Base and bitwise operations",
+    "note": "—"
+  },
+  {
+    "name": "HEX2DEC",
+    "syntax": "HEX2DEC(text)",
+    "example": "=HEX2DEC(\"text\")",
+    "paramNotes": "text/文本",
+    "purpose": "进制与位运算 / Base and bitwise operations",
+    "note": "—"
+  },
+  {
+    "name": "HEX2OCT",
+    "syntax": "HEX2OCT(text1, [number2])",
+    "example": "=HEX2OCT(\"text\")",
+    "paramNotes": "text1/文本1, number2/数值2 (optional/可选)",
+    "purpose": "进制与位运算 / Base and bitwise operations",
+    "note": "—"
+  },
+  {
+    "name": "HF.ADD",
+    "syntax": "HF.ADD(number1, number2)",
+    "example": "=HF.ADD(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "HF.CONCAT",
+    "syntax": "HF.CONCAT(text1, text2)",
+    "example": "=HF.CONCAT(\"text\", \"text\")",
+    "paramNotes": "text1/文本1, text2/文本2",
+    "purpose": "文本处理 / Text processing",
+    "note": "—"
+  },
+  {
+    "name": "HF.DIVIDE",
+    "syntax": "HF.DIVIDE(number1, number2)",
+    "example": "=HF.DIVIDE(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "HF.EQ",
+    "syntax": "HF.EQ(value1, value2)",
+    "example": "=HF.EQ(1, 1)",
+    "paramNotes": "value1/值1, value2/值2",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "HF.GT",
+    "syntax": "HF.GT(value1, value2)",
+    "example": "=HF.GT(1, 1)",
+    "paramNotes": "value1/值1, value2/值2",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "HF.GTE",
+    "syntax": "HF.GTE(value1, value2)",
+    "example": "=HF.GTE(1, 1)",
+    "paramNotes": "value1/值1, value2/值2",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "HF.LT",
+    "syntax": "HF.LT(value1, value2)",
+    "example": "=HF.LT(1, 1)",
+    "paramNotes": "value1/值1, value2/值2",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "HF.LTE",
+    "syntax": "HF.LTE(value1, value2)",
+    "example": "=HF.LTE(1, 1)",
+    "paramNotes": "value1/值1, value2/值2",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "HF.MINUS",
+    "syntax": "HF.MINUS(number1, number2)",
+    "example": "=HF.MINUS(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "HF.MULTIPLY",
+    "syntax": "HF.MULTIPLY(number1, number2)",
+    "example": "=HF.MULTIPLY(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "HF.NE",
+    "syntax": "HF.NE(value1, value2)",
+    "example": "=HF.NE(1, 1)",
+    "paramNotes": "value1/值1, value2/值2",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "HF.POW",
+    "syntax": "HF.POW(number1, number2)",
+    "example": "=HF.POW(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "HF.UMINUS",
+    "syntax": "HF.UMINUS(number)",
+    "example": "=HF.UMINUS(1)",
+    "paramNotes": "number/数值",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "HF.UNARY_PERCENT",
+    "syntax": "HF.UNARY_PERCENT(number)",
+    "example": "=HF.UNARY_PERCENT(1)",
+    "paramNotes": "number/数值",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "HF.UPLUS",
+    "syntax": "HF.UPLUS(number)",
+    "example": "=HF.UPLUS(1)",
+    "paramNotes": "number/数值",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "HLOOKUP",
+    "syntax": "HLOOKUP(lookup_value, table, return_row, join_row)",
+    "example": "=HLOOKUP(1, A1:A5, 1, TRUE)",
+    "paramNotes": "lookup_value/查找值, table/表, return_row/返回行, join_row/匹配行",
+    "purpose": "查找与引用数据 / Lookup and reference data",
+    "note": "—"
+  },
+  {
+    "name": "HOUR",
+    "syntax": "HOUR(number)",
+    "example": "=HOUR(1)",
+    "paramNotes": "number/数值",
+    "purpose": "日期与时间处理 / Date and time handling",
+    "note": "—"
+  },
+  {
+    "name": "HYPERLINK",
+    "syntax": "HYPERLINK(text1, [text2])",
+    "example": "=HYPERLINK(\"text\")",
+    "paramNotes": "text1/文本1, text2/文本2 (optional/可选)",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "HYPGEOM.DIST",
+    "syntax": "HYPGEOM.DIST(number1, number2, number3, number4, condition5)",
+    "example": "=HYPGEOM.DIST(1, 1, 1, 1, TRUE)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3, number4/数值4, condition5/条件5",
+    "purpose": "统计分布函数 / Statistical distributions",
+    "note": "—"
+  },
+  {
+    "name": "HYPGEOMDIST",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "IF",
+    "syntax": "IF(condition, value_if_true, value_if_false)",
+    "example": "=IF(TRUE, 1, 1)",
+    "paramNotes": "condition/条件, value_if_true/真值, value_if_false/假值",
+    "purpose": "按条件返回不同结果 / Return different results based on a condition",
+    "note": "—"
+  },
+  {
+    "name": "IFERROR",
+    "syntax": "IFERROR(value, value_if_error)",
+    "example": "=IFERROR(1, 1)",
+    "paramNotes": "value/值, value_if_error/出错替代值",
+    "purpose": "逻辑判断与条件处理 / Logical conditions",
+    "note": "—"
+  },
+  {
+    "name": "IFNA",
+    "syntax": "IFNA(value, value_if_na)",
+    "example": "=IFNA(1, 1)",
+    "paramNotes": "value/值, value_if_na/NA替代值",
+    "purpose": "逻辑判断与条件处理 / Logical conditions",
+    "note": "—"
+  },
+  {
+    "name": "IFS",
+    "syntax": "IFS(condition1, value1)",
+    "example": "=IFS(TRUE, 1)",
+    "paramNotes": "condition1/条件1, value1/值1",
+    "purpose": "逻辑判断与条件处理 / Logical conditions",
+    "note": "—"
+  },
+  {
+    "name": "IMABS",
+    "syntax": "IMABS(complex)",
+    "example": "=IMABS(\"1+2i\")",
+    "paramNotes": "complex/复数",
+    "purpose": "数学计算与取整 / Math and rounding",
+    "note": "—"
+  },
+  {
+    "name": "IMAGINARY",
+    "syntax": "IMAGINARY(complex)",
+    "example": "=IMAGINARY(\"1+2i\")",
+    "paramNotes": "complex/复数",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "IMARGUMENT",
+    "syntax": "IMARGUMENT(complex)",
+    "example": "=IMARGUMENT(\"1+2i\")",
+    "paramNotes": "complex/复数",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "IMCONJUGATE",
+    "syntax": "IMCONJUGATE(complex)",
+    "example": "=IMCONJUGATE(\"1+2i\")",
+    "paramNotes": "complex/复数",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "IMCOS",
+    "syntax": "IMCOS(complex)",
+    "example": "=IMCOS(\"1+2i\")",
+    "paramNotes": "complex/复数",
+    "purpose": "三角函数与角度转换 / Trigonometry",
+    "note": "—"
+  },
+  {
+    "name": "IMCOSH",
+    "syntax": "IMCOSH(complex)",
+    "example": "=IMCOSH(\"1+2i\")",
+    "paramNotes": "complex/复数",
+    "purpose": "三角函数与角度转换 / Trigonometry",
+    "note": "—"
+  },
+  {
+    "name": "IMCOT",
+    "syntax": "IMCOT(complex)",
+    "example": "=IMCOT(\"1+2i\")",
+    "paramNotes": "complex/复数",
+    "purpose": "三角函数与角度转换 / Trigonometry",
+    "note": "—"
+  },
+  {
+    "name": "IMCSC",
+    "syntax": "IMCSC(complex)",
+    "example": "=IMCSC(\"1+2i\")",
+    "paramNotes": "complex/复数",
+    "purpose": "三角函数与角度转换 / Trigonometry",
+    "note": "—"
+  },
+  {
+    "name": "IMCSCH",
+    "syntax": "IMCSCH(complex)",
+    "example": "=IMCSCH(\"1+2i\")",
+    "paramNotes": "complex/复数",
+    "purpose": "三角函数与角度转换 / Trigonometry",
+    "note": "—"
+  },
+  {
+    "name": "IMDIV",
+    "syntax": "IMDIV(complex1, complex2)",
+    "example": "=IMDIV(\"1+2i\", \"1+2i\")",
+    "paramNotes": "complex1/复数1, complex2/复数2",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "IMEXP",
+    "syntax": "IMEXP(complex)",
+    "example": "=IMEXP(\"1+2i\")",
+    "paramNotes": "complex/复数",
+    "purpose": "数学计算与取整 / Math and rounding",
+    "note": "—"
+  },
+  {
+    "name": "IMLN",
+    "syntax": "IMLN(complex)",
+    "example": "=IMLN(\"1+2i\")",
+    "paramNotes": "complex/复数",
+    "purpose": "数学计算与取整 / Math and rounding",
+    "note": "—"
+  },
+  {
+    "name": "IMLOG10",
+    "syntax": "IMLOG10(complex)",
+    "example": "=IMLOG10(\"1+2i\")",
+    "paramNotes": "complex/复数",
+    "purpose": "数学计算与取整 / Math and rounding",
+    "note": "—"
+  },
+  {
+    "name": "IMLOG2",
+    "syntax": "IMLOG2(complex)",
+    "example": "=IMLOG2(\"1+2i\")",
+    "paramNotes": "complex/复数",
+    "purpose": "数学计算与取整 / Math and rounding",
+    "note": "—"
+  },
+  {
+    "name": "IMPOWER",
+    "syntax": "IMPOWER(complex1, number2)",
+    "example": "=IMPOWER(\"1+2i\", 1)",
+    "paramNotes": "complex1/复数1, number2/数值2",
+    "purpose": "数学计算与取整 / Math and rounding",
+    "note": "—"
+  },
+  {
+    "name": "IMPRODUCT",
+    "syntax": "IMPRODUCT(value)",
+    "example": "=IMPRODUCT(1)",
+    "paramNotes": "value/值",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "IMREAL",
+    "syntax": "IMREAL(complex)",
+    "example": "=IMREAL(\"1+2i\")",
+    "paramNotes": "complex/复数",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "IMSEC",
+    "syntax": "IMSEC(complex)",
+    "example": "=IMSEC(\"1+2i\")",
+    "paramNotes": "complex/复数",
+    "purpose": "三角函数与角度转换 / Trigonometry",
+    "note": "—"
+  },
+  {
+    "name": "IMSECH",
+    "syntax": "IMSECH(complex)",
+    "example": "=IMSECH(\"1+2i\")",
+    "paramNotes": "complex/复数",
+    "purpose": "三角函数与角度转换 / Trigonometry",
+    "note": "—"
+  },
+  {
+    "name": "IMSIN",
+    "syntax": "IMSIN(complex)",
+    "example": "=IMSIN(\"1+2i\")",
+    "paramNotes": "complex/复数",
+    "purpose": "三角函数与角度转换 / Trigonometry",
+    "note": "—"
+  },
+  {
+    "name": "IMSINH",
+    "syntax": "IMSINH(complex)",
+    "example": "=IMSINH(\"1+2i\")",
+    "paramNotes": "complex/复数",
+    "purpose": "三角函数与角度转换 / Trigonometry",
+    "note": "—"
+  },
+  {
+    "name": "IMSQRT",
+    "syntax": "IMSQRT(complex)",
+    "example": "=IMSQRT(\"1+2i\")",
+    "paramNotes": "complex/复数",
+    "purpose": "数学计算与取整 / Math and rounding",
+    "note": "—"
+  },
+  {
+    "name": "IMSUB",
+    "syntax": "IMSUB(complex1, complex2)",
+    "example": "=IMSUB(\"1+2i\", \"1+2i\")",
+    "paramNotes": "complex1/复数1, complex2/复数2",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "IMSUM",
+    "syntax": "IMSUM(value)",
+    "example": "=IMSUM(1)",
+    "paramNotes": "value/值",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "IMTAN",
+    "syntax": "IMTAN(complex)",
+    "example": "=IMTAN(\"1+2i\")",
+    "paramNotes": "complex/复数",
+    "purpose": "三角函数与角度转换 / Trigonometry",
+    "note": "—"
+  },
+  {
+    "name": "INDEX",
+    "syntax": "INDEX(range, row, column)",
+    "example": "=INDEX(A1:A5, 1, 1)",
+    "paramNotes": "range/范围, row/行号, column/列号",
+    "purpose": "返回范围内指定行列的值 / Return the value at a specific row/column",
+    "note": "—"
+  },
+  {
+    "name": "INT",
+    "syntax": "INT(number)",
+    "example": "=INT(1)",
+    "paramNotes": "number/数值",
+    "purpose": "数学计算与取整 / Math and rounding",
+    "note": "—"
+  },
+  {
+    "name": "INTERVAL",
+    "syntax": "INTERVAL(number)",
+    "example": "=INTERVAL(1)",
+    "paramNotes": "number/数值",
+    "purpose": "数学计算与取整 / Math and rounding",
+    "note": "—"
+  },
+  {
+    "name": "IPMT",
+    "syntax": "IPMT(number1, number2, number3, number4, number5, number6)",
+    "example": "=IPMT(1, 1, 1, 1, 1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3, number4/数值4, number5/数值5, number6/数值6",
+    "purpose": "财务计算 / Financial calculations",
+    "note": "—"
+  },
+  {
+    "name": "IRR",
+    "syntax": "IRR(range1, number2)",
+    "example": "=IRR(A1:A5, 1)",
+    "paramNotes": "range1/范围1, number2/数值2",
+    "purpose": "财务计算 / Financial calculations",
+    "note": "—"
+  },
+  {
+    "name": "ISBINARY",
+    "syntax": "ISBINARY(text)",
+    "example": "=ISBINARY(\"text\")",
+    "paramNotes": "text/文本",
+    "purpose": "进制与位运算 / Base and bitwise operations",
+    "note": "—"
+  },
+  {
+    "name": "ISBLANK",
+    "syntax": "ISBLANK(value)",
+    "example": "=ISBLANK(1)",
+    "paramNotes": "value/值",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "ISERR",
+    "syntax": "ISERR(value)",
+    "example": "=ISERR(1)",
+    "paramNotes": "value/值",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "ISERROR",
+    "syntax": "ISERROR(value)",
+    "example": "=ISERROR(1)",
+    "paramNotes": "value/值",
+    "purpose": "逻辑判断与条件处理 / Logical conditions",
+    "note": "—"
+  },
+  {
+    "name": "ISEVEN",
+    "syntax": "ISEVEN(number)",
+    "example": "=ISEVEN(1)",
+    "paramNotes": "number/数值",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "ISFORMULA",
+    "syntax": "ISFORMULA(value)",
+    "example": "=ISFORMULA(1)",
+    "paramNotes": "value/值",
+    "purpose": "逻辑判断与条件处理 / Logical conditions",
+    "note": "—"
+  },
+  {
+    "name": "ISLOGICAL",
+    "syntax": "ISLOGICAL(value)",
+    "example": "=ISLOGICAL(1)",
+    "paramNotes": "value/值",
+    "purpose": "数学计算与取整 / Math and rounding",
+    "note": "—"
+  },
+  {
+    "name": "ISNA",
+    "syntax": "ISNA(value)",
+    "example": "=ISNA(1)",
+    "paramNotes": "value/值",
+    "purpose": "错误检测与处理 / Error handling",
+    "note": "—"
+  },
+  {
+    "name": "ISNONTEXT",
+    "syntax": "ISNONTEXT(value)",
+    "example": "=ISNONTEXT(1)",
+    "paramNotes": "value/值",
+    "purpose": "文本处理 / Text processing",
+    "note": "—"
+  },
+  {
+    "name": "ISNUMBER",
+    "syntax": "ISNUMBER(value)",
+    "example": "=ISNUMBER(1)",
+    "paramNotes": "value/值",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "ISO.CEILING",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "ISODD",
+    "syntax": "ISODD(number)",
+    "example": "=ISODD(1)",
+    "paramNotes": "number/数值",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "ISOWEEKNUM",
+    "syntax": "ISOWEEKNUM(number)",
+    "example": "=ISOWEEKNUM(1)",
+    "paramNotes": "number/数值",
+    "purpose": "日期与时间处理 / Date and time handling",
+    "note": "—"
+  },
+  {
+    "name": "ISPMT",
+    "syntax": "ISPMT(number1, number2, number3, number4)",
+    "example": "=ISPMT(1, 1, 1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3, number4/数值4",
+    "purpose": "财务计算 / Financial calculations",
+    "note": "—"
+  },
+  {
+    "name": "ISREF",
+    "syntax": "ISREF(value)",
+    "example": "=ISREF(1)",
+    "paramNotes": "value/值",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "ISTEXT",
+    "syntax": "ISTEXT(value)",
+    "example": "=ISTEXT(1)",
+    "paramNotes": "value/值",
+    "purpose": "文本处理 / Text processing",
+    "note": "—"
+  },
+  {
+    "name": "LARGE",
+    "syntax": "LARGE(range1, number2)",
+    "example": "=LARGE(A1:A5, 1)",
+    "paramNotes": "range1/范围1, number2/数值2",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "LCM",
+    "syntax": "LCM(value)",
+    "example": "=LCM(1)",
+    "paramNotes": "value/值",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "LEFT",
+    "syntax": "LEFT(text, num_chars)",
+    "example": "=LEFT(\"text\", 1)",
+    "paramNotes": "text/文本, num_chars/字符数",
+    "purpose": "从左侧截取文本 / Extract text from the left",
+    "note": "—"
+  },
+  {
+    "name": "LEN",
+    "syntax": "LEN(text)",
+    "example": "=LEN(\"text\")",
+    "paramNotes": "text/文本",
+    "purpose": "文本处理 / Text processing",
+    "note": "—"
+  },
+  {
+    "name": "LN",
+    "syntax": "LN(number)",
+    "example": "=LN(1)",
+    "paramNotes": "number/数值",
+    "purpose": "数学计算与取整 / Math and rounding",
+    "note": "—"
+  },
+  {
+    "name": "LOG",
+    "syntax": "LOG(number1, number2)",
+    "example": "=LOG(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "数学计算与取整 / Math and rounding",
+    "note": "—"
+  },
+  {
+    "name": "LOG10",
+    "syntax": "LOG10(number)",
+    "example": "=LOG10(1)",
+    "paramNotes": "number/数值",
+    "purpose": "数学计算与取整 / Math and rounding",
+    "note": "—"
+  },
+  {
+    "name": "LOGINV",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "LOGNORM.DIST",
+    "syntax": "LOGNORM.DIST(number1, number2, number3, condition4)",
+    "example": "=LOGNORM.DIST(1, 1, 1, TRUE)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3, condition4/条件4",
+    "purpose": "逻辑判断与条件处理 / Logical conditions",
+    "note": "—"
+  },
+  {
+    "name": "LOGNORM.INV",
+    "syntax": "LOGNORM.INV(number1, number2, number3)",
+    "example": "=LOGNORM.INV(1, 1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3",
+    "purpose": "逻辑判断与条件处理 / Logical conditions",
+    "note": "—"
+  },
+  {
+    "name": "LOGNORMDIST",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "LOGNORMINV",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "LOWER",
+    "syntax": "LOWER(text)",
+    "example": "=LOWER(\"text\")",
+    "paramNotes": "text/文本",
+    "purpose": "文本处理 / Text processing",
+    "note": "—"
+  },
+  {
+    "name": "MATCH",
+    "syntax": "MATCH(lookup_value, range, match_type)",
+    "example": "=MATCH(1, A1:A5, 1)",
+    "paramNotes": "lookup_value/查找值, range/范围, match_type/匹配方式",
+    "purpose": "返回查找值在范围内的位置 / Return position of a lookup value",
+    "note": "—"
+  },
+  {
+    "name": "MAX",
+    "syntax": "MAX(range)",
+    "example": "=MAX(1)",
+    "paramNotes": "range/范围",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "MAXA",
+    "syntax": "MAXA(value)",
+    "example": "=MAXA(1)",
+    "paramNotes": "value/值",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "MAXIFS",
+    "syntax": "MAXIFS(range1, range2, value3)",
+    "example": "=MAXIFS(A1:A5, A1:A5, 1)",
+    "paramNotes": "range1/范围1, range2/范围2, value3/值3",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "MAXPOOL",
+    "syntax": "MAXPOOL(range1, number2, [number3])",
+    "example": "=MAXPOOL(A1:A5, 1)",
+    "paramNotes": "range1/范围1, number2/数值2, number3/数值3 (optional/可选)",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "MEDIAN",
+    "syntax": "MEDIAN(range)",
+    "example": "=MEDIAN(1)",
+    "paramNotes": "range/范围",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "MEDIANPOOL",
+    "syntax": "MEDIANPOOL(range1, number2, [number3])",
+    "example": "=MEDIANPOOL(A1:A5, 1)",
+    "paramNotes": "range1/范围1, number2/数值2, number3/数值3 (optional/可选)",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "MID",
+    "syntax": "MID(text, start_num, num_chars)",
+    "example": "=MID(\"text\", 1, 1)",
+    "paramNotes": "text/文本, start_num/起始位置, num_chars/字符数",
+    "purpose": "从中间截取文本 / Extract text from the middle",
+    "note": "—"
+  },
+  {
+    "name": "MIN",
+    "syntax": "MIN(range)",
+    "example": "=MIN(1)",
+    "paramNotes": "range/范围",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "MINA",
+    "syntax": "MINA(value)",
+    "example": "=MINA(1)",
+    "paramNotes": "value/值",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "MINIFS",
+    "syntax": "MINIFS(range1, range2, value3)",
+    "example": "=MINIFS(A1:A5, A1:A5, 1)",
+    "paramNotes": "range1/范围1, range2/范围2, value3/值3",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "MINUTE",
+    "syntax": "MINUTE(number)",
+    "example": "=MINUTE(1)",
+    "paramNotes": "number/数值",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "MIRR",
+    "syntax": "MIRR(range1, number2, number3)",
+    "example": "=MIRR(A1:A5, 1, 1)",
+    "paramNotes": "range1/范围1, number2/数值2, number3/数值3",
+    "purpose": "财务计算 / Financial calculations",
+    "note": "—"
+  },
+  {
+    "name": "MMULT",
+    "syntax": "MMULT(range1, range2)",
+    "example": "=MMULT(A1:A5, A1:A5)",
+    "paramNotes": "range1/范围1, range2/范围2",
+    "purpose": "数组与矩阵处理 / Array and matrix operations",
+    "note": "—"
+  },
+  {
+    "name": "MOD",
+    "syntax": "MOD(number1, number2)",
+    "example": "=MOD(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "数学计算与取整 / Math and rounding",
+    "note": "—"
+  },
+  {
+    "name": "MONTH",
+    "syntax": "MONTH(number)",
+    "example": "=MONTH(1)",
+    "paramNotes": "number/数值",
+    "purpose": "日期与时间处理 / Date and time handling",
+    "note": "—"
+  },
+  {
+    "name": "MROUND",
+    "syntax": "MROUND(number1, number2)",
+    "example": "=MROUND(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "数学计算与取整 / Math and rounding",
+    "note": "—"
+  },
+  {
+    "name": "MULTINOMIAL",
+    "syntax": "MULTINOMIAL(number)",
+    "example": "=MULTINOMIAL(1)",
+    "paramNotes": "number/数值",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "N",
+    "syntax": "N(value)",
+    "example": "=N(1)",
+    "paramNotes": "value/值",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "NA",
+    "syntax": "NA()",
+    "example": "=NA()",
+    "paramNotes": "无参数 / No parameters",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "NEGBINOM.DIST",
+    "syntax": "NEGBINOM.DIST(number1, number2, number3, condition4)",
+    "example": "=NEGBINOM.DIST(1, 1, 1, TRUE)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3, condition4/条件4",
+    "purpose": "统计分布函数 / Statistical distributions",
+    "note": "—"
+  },
+  {
+    "name": "NEGBINOMDIST",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "NETWORKDAYS",
+    "syntax": "NETWORKDAYS(number1, number2, [range3])",
+    "example": "=NETWORKDAYS(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, range3/范围3 (optional/可选)",
+    "purpose": "日期与时间处理 / Date and time handling",
+    "note": "—"
+  },
+  {
+    "name": "NETWORKDAYS.INTL",
+    "syntax": "NETWORKDAYS.INTL(number1, number2, value3, [range4])",
+    "example": "=NETWORKDAYS.INTL(1, 1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, value3/值3, range4/范围4 (optional/可选)",
+    "purpose": "日期与时间处理 / Date and time handling",
+    "note": "—"
+  },
+  {
+    "name": "NOMINAL",
+    "syntax": "NOMINAL(number1, number2)",
+    "example": "=NOMINAL(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "NORM.DIST",
+    "syntax": "NORM.DIST(number1, number2, number3, condition4)",
+    "example": "=NORM.DIST(1, 1, 1, TRUE)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3, condition4/条件4",
+    "purpose": "逻辑判断与条件处理 / Logical conditions",
+    "note": "—"
+  },
+  {
+    "name": "NORM.INV",
+    "syntax": "NORM.INV(number1, number2, number3)",
+    "example": "=NORM.INV(1, 1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3",
+    "purpose": "逻辑判断与条件处理 / Logical conditions",
+    "note": "—"
+  },
+  {
+    "name": "NORM.S.DIST",
+    "syntax": "NORM.S.DIST(number1, condition2)",
+    "example": "=NORM.S.DIST(1, TRUE)",
+    "paramNotes": "number1/数值1, condition2/条件2",
+    "purpose": "逻辑判断与条件处理 / Logical conditions",
+    "note": "—"
+  },
+  {
+    "name": "NORM.S.INV",
+    "syntax": "NORM.S.INV(number)",
+    "example": "=NORM.S.INV(1)",
+    "paramNotes": "number/数值",
+    "purpose": "逻辑判断与条件处理 / Logical conditions",
+    "note": "—"
+  },
+  {
+    "name": "NORMDIST",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "NORMINV",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "NORMSDIST",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "NORMSINV",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "NOT",
+    "syntax": "NOT(condition)",
+    "example": "=NOT(TRUE)",
+    "paramNotes": "condition/条件",
+    "purpose": "逻辑判断与条件处理 / Logical conditions",
+    "note": "—"
+  },
+  {
+    "name": "NOW",
+    "syntax": "NOW()",
+    "example": "=NOW()",
+    "paramNotes": "无参数 / No parameters",
+    "purpose": "返回当前日期时间 / Return current date and time",
+    "note": "—"
+  },
+  {
+    "name": "NPER",
+    "syntax": "NPER(number1, number2, number3, number4, number5)",
+    "example": "=NPER(1, 1, 1, 1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3, number4/数值4, number5/数值5",
+    "purpose": "财务计算 / Financial calculations",
+    "note": "—"
+  },
+  {
+    "name": "NPV",
+    "syntax": "NPV(number1, value2)",
+    "example": "=NPV(1, 1)",
+    "paramNotes": "number1/数值1, value2/值2",
+    "purpose": "财务计算 / Financial calculations",
+    "note": "—"
+  },
+  {
+    "name": "OCT2BIN",
+    "syntax": "OCT2BIN(text1, [number2])",
+    "example": "=OCT2BIN(\"text\")",
+    "paramNotes": "text1/文本1, number2/数值2 (optional/可选)",
+    "purpose": "进制与位运算 / Base and bitwise operations",
+    "note": "—"
+  },
+  {
+    "name": "OCT2DEC",
+    "syntax": "OCT2DEC(text)",
+    "example": "=OCT2DEC(\"text\")",
+    "paramNotes": "text/文本",
+    "purpose": "进制与位运算 / Base and bitwise operations",
+    "note": "—"
+  },
+  {
+    "name": "OCT2HEX",
+    "syntax": "OCT2HEX(text1, [number2])",
+    "example": "=OCT2HEX(\"text\")",
+    "paramNotes": "text1/文本1, number2/数值2 (optional/可选)",
+    "purpose": "进制与位运算 / Base and bitwise operations",
+    "note": "—"
+  },
+  {
+    "name": "ODD",
+    "syntax": "ODD(number)",
+    "example": "=ODD(1)",
+    "paramNotes": "number/数值",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "OFFSET",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "OR",
+    "syntax": "OR(condition1)",
+    "example": "=OR(TRUE)",
+    "paramNotes": "condition1/条件1",
+    "purpose": "逻辑判断与条件处理 / Logical conditions",
+    "note": "—"
+  },
+  {
+    "name": "PDURATION",
+    "syntax": "PDURATION(number1, number2, number3)",
+    "example": "=PDURATION(1, 1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "PEARSON",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "PHI",
+    "syntax": "PHI(number)",
+    "example": "=PHI(1)",
+    "paramNotes": "number/数值",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "PI",
+    "syntax": "PI()",
+    "example": "=PI()",
+    "paramNotes": "无参数 / No parameters",
+    "purpose": "三角函数与角度转换 / Trigonometry",
+    "note": "—"
+  },
+  {
+    "name": "PMT",
+    "syntax": "PMT(number1, number2, number3, number4, number5)",
+    "example": "=PMT(1, 1, 1, 1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3, number4/数值4, number5/数值5",
+    "purpose": "财务计算 / Financial calculations",
+    "note": "—"
+  },
+  {
+    "name": "POISSON",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "POISSON.DIST",
+    "syntax": "POISSON.DIST(number1, number2, condition3)",
+    "example": "=POISSON.DIST(1, 1, TRUE)",
+    "paramNotes": "number1/数值1, number2/数值2, condition3/条件3",
+    "purpose": "统计分布函数 / Statistical distributions",
+    "note": "—"
+  },
+  {
+    "name": "POISSONDIST",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "POWER",
+    "syntax": "POWER(number1, number2)",
+    "example": "=POWER(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "数学计算与取整 / Math and rounding",
+    "note": "—"
+  },
+  {
+    "name": "PPMT",
+    "syntax": "PPMT(number1, number2, number3, number4, number5, number6)",
+    "example": "=PPMT(1, 1, 1, 1, 1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3, number4/数值4, number5/数值5, number6/数值6",
+    "purpose": "财务计算 / Financial calculations",
+    "note": "—"
+  },
+  {
+    "name": "PRODUCT",
+    "syntax": "PRODUCT(value)",
+    "example": "=PRODUCT(1)",
+    "paramNotes": "value/值",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "PROPER",
+    "syntax": "PROPER(text)",
+    "example": "=PROPER(\"text\")",
+    "paramNotes": "text/文本",
+    "purpose": "文本处理 / Text processing",
+    "note": "—"
+  },
+  {
+    "name": "PV",
+    "syntax": "PV(number1, number2, number3, number4, number5)",
+    "example": "=PV(1, 1, 1, 1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3, number4/数值4, number5/数值5",
+    "purpose": "财务计算 / Financial calculations",
+    "note": "—"
+  },
+  {
+    "name": "QUOTIENT",
+    "syntax": "QUOTIENT(number1, number2)",
+    "example": "=QUOTIENT(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "RADIANS",
+    "syntax": "RADIANS(number)",
+    "example": "=RADIANS(1)",
+    "paramNotes": "number/数值",
+    "purpose": "三角函数与角度转换 / Trigonometry",
+    "note": "—"
+  },
+  {
+    "name": "RAND",
+    "syntax": "RAND()",
+    "example": "=RAND()",
+    "paramNotes": "无参数 / No parameters",
+    "purpose": "逻辑判断与条件处理 / Logical conditions",
+    "note": "—"
+  },
+  {
+    "name": "RANDBETWEEN",
+    "syntax": "RANDBETWEEN(number1, number2)",
+    "example": "=RANDBETWEEN(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "逻辑判断与条件处理 / Logical conditions",
+    "note": "—"
+  },
+  {
+    "name": "RATE",
+    "syntax": "RATE(number1, number2, number3, number4, number5, number6)",
+    "example": "=RATE(1, 1, 1, 1, 1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3, number4/数值4, number5/数值5, number6/数值6",
+    "purpose": "财务计算 / Financial calculations",
+    "note": "—"
+  },
+  {
+    "name": "REPLACE",
+    "syntax": "REPLACE(old_text, start_num, num_chars, new_text)",
+    "example": "=REPLACE(\"text\", 1, 1, \"text\")",
+    "paramNotes": "old_text/旧文本, start_num/起始位置, num_chars/字符数, new_text/新文本",
+    "purpose": "文本处理 / Text processing",
+    "note": "—"
+  },
+  {
+    "name": "REPT",
+    "syntax": "REPT(text1, number2)",
+    "example": "=REPT(\"text\", 1)",
+    "paramNotes": "text1/文本1, number2/数值2",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "RIGHT",
+    "syntax": "RIGHT(text, num_chars)",
+    "example": "=RIGHT(\"text\", 1)",
+    "paramNotes": "text/文本, num_chars/字符数",
+    "purpose": "从右侧截取文本 / Extract text from the right",
+    "note": "—"
+  },
+  {
+    "name": "ROMAN",
+    "syntax": "ROMAN(number1, [value2])",
+    "example": "=ROMAN(1)",
+    "paramNotes": "number1/数值1, value2/值2 (optional/可选)",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "ROUND",
+    "syntax": "ROUND(number, num_digits)",
+    "example": "=ROUND(1, 1)",
+    "paramNotes": "number/数值, num_digits/小数位",
+    "purpose": "按指定位数四舍五入 / Round to a specified number of digits",
+    "note": "—"
+  },
+  {
+    "name": "ROUNDDOWN",
+    "syntax": "ROUNDDOWN(number, num_digits)",
+    "example": "=ROUNDDOWN(1, 1)",
+    "paramNotes": "number/数值, num_digits/小数位",
+    "purpose": "数学计算与取整 / Math and rounding",
+    "note": "—"
+  },
+  {
+    "name": "ROUNDUP",
+    "syntax": "ROUNDUP(number, num_digits)",
+    "example": "=ROUNDUP(1, 1)",
+    "paramNotes": "number/数值, num_digits/小数位",
+    "purpose": "数学计算与取整 / Math and rounding",
+    "note": "—"
+  },
+  {
+    "name": "ROW",
+    "syntax": "ROW([value])",
+    "example": "=ROW()",
+    "paramNotes": "value/值 (optional/可选)",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "ROWS",
+    "syntax": "ROWS(range)",
+    "example": "=ROWS(A1:A5)",
+    "paramNotes": "range/范围",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "RRI",
+    "syntax": "RRI(number1, number2, number3)",
+    "example": "=RRI(1, 1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "RSQ",
+    "syntax": "RSQ(range1, range2)",
+    "example": "=RSQ(A1:A5, A1:A5)",
+    "paramNotes": "range1/范围1, range2/范围2",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "SEARCH",
+    "syntax": "SEARCH(find_text, within_text, start_num)",
+    "example": "=SEARCH(\"text\", \"text\", 1)",
+    "paramNotes": "find_text/查找文本, within_text/范围文本, start_num/起始位置",
+    "purpose": "文本处理 / Text processing",
+    "note": "—"
+  },
+  {
+    "name": "SEC",
+    "syntax": "SEC(number)",
+    "example": "=SEC(1)",
+    "paramNotes": "number/数值",
+    "purpose": "三角函数与角度转换 / Trigonometry",
+    "note": "—"
+  },
+  {
+    "name": "SECH",
+    "syntax": "SECH(number)",
+    "example": "=SECH(1)",
+    "paramNotes": "number/数值",
+    "purpose": "三角函数与角度转换 / Trigonometry",
+    "note": "—"
+  },
+  {
+    "name": "SECOND",
+    "syntax": "SECOND(number)",
+    "example": "=SECOND(1)",
+    "paramNotes": "number/数值",
+    "purpose": "日期与时间处理 / Date and time handling",
+    "note": "—"
+  },
+  {
+    "name": "SERIESSUM",
+    "syntax": "SERIESSUM(number1, number2, number3, range4)",
+    "example": "=SERIESSUM(1, 1, 1, A1:A5)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3, range4/范围4",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "SHEET",
+    "syntax": "SHEET(text)",
+    "example": "=SHEET(\"text\")",
+    "paramNotes": "text/文本",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "SHEETS",
+    "syntax": "SHEETS(text)",
+    "example": "=SHEETS(\"text\")",
+    "paramNotes": "text/文本",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "SIGN",
+    "syntax": "SIGN(number)",
+    "example": "=SIGN(1)",
+    "paramNotes": "number/数值",
+    "purpose": "数学计算与取整 / Math and rounding",
+    "note": "—"
+  },
+  {
+    "name": "SIN",
+    "syntax": "SIN(number)",
+    "example": "=SIN(1)",
+    "paramNotes": "number/数值",
+    "purpose": "三角函数与角度转换 / Trigonometry",
+    "note": "—"
+  },
+  {
+    "name": "SINH",
+    "syntax": "SINH(number)",
+    "example": "=SINH(1)",
+    "paramNotes": "number/数值",
+    "purpose": "三角函数与角度转换 / Trigonometry",
+    "note": "—"
+  },
+  {
+    "name": "SKEW",
+    "syntax": "SKEW(value)",
+    "example": "=SKEW(1)",
+    "paramNotes": "value/值",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "SKEW.P",
+    "syntax": "SKEW.P(value)",
+    "example": "=SKEW.P(1)",
+    "paramNotes": "value/值",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "SKEWP",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "SLN",
+    "syntax": "SLN(number1, number2, number3)",
+    "example": "=SLN(1, 1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3",
+    "purpose": "数学计算与取整 / Math and rounding",
+    "note": "—"
+  },
+  {
+    "name": "SLOPE",
+    "syntax": "SLOPE(range1, range2)",
+    "example": "=SLOPE(A1:A5, A1:A5)",
+    "paramNotes": "range1/范围1, range2/范围2",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "SMALL",
+    "syntax": "SMALL(range1, number2)",
+    "example": "=SMALL(A1:A5, 1)",
+    "paramNotes": "range1/范围1, number2/数值2",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "SPLIT",
+    "syntax": "SPLIT(text, delimiter)",
+    "example": "=SPLIT(\"text\", 1)",
+    "paramNotes": "text/文本, delimiter/分隔符",
+    "purpose": "按分隔符拆分文本 / Split text by a delimiter",
+    "note": "—"
+  },
+  {
+    "name": "SQRT",
+    "syntax": "SQRT(number)",
+    "example": "=SQRT(1)",
+    "paramNotes": "number/数值",
+    "purpose": "数学计算与取整 / Math and rounding",
+    "note": "—"
+  },
+  {
+    "name": "SQRTPI",
+    "syntax": "SQRTPI(number)",
+    "example": "=SQRTPI(1)",
+    "paramNotes": "number/数值",
+    "purpose": "数学计算与取整 / Math and rounding",
+    "note": "—"
+  },
+  {
+    "name": "STANDARDIZE",
+    "syntax": "STANDARDIZE(number1, number2, number3)",
+    "example": "=STANDARDIZE(1, 1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3",
+    "purpose": "逻辑判断与条件处理 / Logical conditions",
+    "note": "—"
+  },
+  {
+    "name": "STDEV",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "STDEV.P",
+    "syntax": "STDEV.P(value)",
+    "example": "=STDEV.P(1)",
+    "paramNotes": "value/值",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "STDEV.S",
+    "syntax": "STDEV.S(value)",
+    "example": "=STDEV.S(1)",
+    "paramNotes": "value/值",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "STDEVA",
+    "syntax": "STDEVA(value)",
+    "example": "=STDEVA(1)",
+    "paramNotes": "value/值",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "STDEVP",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "STDEVPA",
+    "syntax": "STDEVPA(value)",
+    "example": "=STDEVPA(1)",
+    "paramNotes": "value/值",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "STDEVS",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "STEYX",
+    "syntax": "STEYX(range1, range2)",
+    "example": "=STEYX(A1:A5, A1:A5)",
+    "paramNotes": "range1/范围1, range2/范围2",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "SUBSTITUTE",
+    "syntax": "SUBSTITUTE(text, old_text, new_text, [instance_num])",
+    "example": "=SUBSTITUTE(\"text\", \"text\", \"text\")",
+    "paramNotes": "text/文本, old_text/旧文本, new_text/新文本, instance_num/替换次数 (optional/可选)",
+    "purpose": "文本处理 / Text processing",
+    "note": "—"
+  },
+  {
+    "name": "SUBTOTAL",
+    "syntax": "SUBTOTAL(number1, value2)",
+    "example": "=SUBTOTAL(1, 1)",
+    "paramNotes": "number1/数值1, value2/值2",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "SUM",
+    "syntax": "SUM(range)",
+    "example": "=SUM(1)",
+    "paramNotes": "range/范围",
+    "purpose": "对范围内数值求和 / Sum numbers in a range",
+    "note": "—"
+  },
+  {
+    "name": "SUMIF",
+    "syntax": "SUMIF(range, criteria, [sum_range])",
+    "example": "=SUMIF(A1:A5, 1)",
+    "paramNotes": "range/范围, criteria/条件, sum_range/求和范围 (optional/可选)",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "SUMIFS",
+    "syntax": "SUMIFS(sum_range, criteria_range1, criteria1)",
+    "example": "=SUMIFS(A1:A5, A1:A5, 1)",
+    "paramNotes": "sum_range/求和范围, criteria_range1/条件范围1, criteria1/条件1",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "SUMPRODUCT",
+    "syntax": "SUMPRODUCT(range)",
+    "example": "=SUMPRODUCT(A1:A5)",
+    "paramNotes": "range/范围",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "SUMSQ",
+    "syntax": "SUMSQ(value)",
+    "example": "=SUMSQ(1)",
+    "paramNotes": "value/值",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "SUMX2MY2",
+    "syntax": "SUMX2MY2(range1, range2)",
+    "example": "=SUMX2MY2(A1:A5, A1:A5)",
+    "paramNotes": "range1/范围1, range2/范围2",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "SUMX2PY2",
+    "syntax": "SUMX2PY2(range1, range2)",
+    "example": "=SUMX2PY2(A1:A5, A1:A5)",
+    "paramNotes": "range1/范围1, range2/范围2",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "SUMXMY2",
+    "syntax": "SUMXMY2(range1, range2)",
+    "example": "=SUMXMY2(A1:A5, A1:A5)",
+    "paramNotes": "range1/范围1, range2/范围2",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "SWITCH",
+    "syntax": "SWITCH(value1, value2, value3)",
+    "example": "=SWITCH(1, 1, 1)",
+    "paramNotes": "value1/值1, value2/值2, value3/值3",
+    "purpose": "逻辑判断与条件处理 / Logical conditions",
+    "note": "—"
+  },
+  {
+    "name": "SYD",
+    "syntax": "SYD(number1, number2, number3, number4)",
+    "example": "=SYD(1, 1, 1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3, number4/数值4",
+    "purpose": "财务计算 / Financial calculations",
+    "note": "—"
+  },
+  {
+    "name": "T",
+    "syntax": "T(value)",
+    "example": "=T(1)",
+    "paramNotes": "value/值",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "T.DIST",
+    "syntax": "T.DIST(number1, number2, condition3)",
+    "example": "=T.DIST(1, 1, TRUE)",
+    "paramNotes": "number1/数值1, number2/数值2, condition3/条件3",
+    "purpose": "统计分布函数 / Statistical distributions",
+    "note": "—"
+  },
+  {
+    "name": "T.DIST.2T",
+    "syntax": "T.DIST.2T(number1, number2)",
+    "example": "=T.DIST.2T(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "统计分布函数 / Statistical distributions",
+    "note": "—"
+  },
+  {
+    "name": "T.DIST.RT",
+    "syntax": "T.DIST.RT(number1, number2)",
+    "example": "=T.DIST.RT(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "统计分布函数 / Statistical distributions",
+    "note": "—"
+  },
+  {
+    "name": "T.INV",
+    "syntax": "T.INV(number1, number2)",
+    "example": "=T.INV(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "T.INV.2T",
+    "syntax": "T.INV.2T(number1, number2)",
+    "example": "=T.INV.2T(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "T.TEST",
+    "syntax": "T.TEST(range1, range2, integer3, integer4)",
+    "example": "=T.TEST(A1:A5, A1:A5, 1, 1)",
+    "paramNotes": "range1/范围1, range2/范围2, integer3/整数3, integer4/整数4",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "TAN",
+    "syntax": "TAN(number)",
+    "example": "=TAN(1)",
+    "paramNotes": "number/数值",
+    "purpose": "三角函数与角度转换 / Trigonometry",
+    "note": "—"
+  },
+  {
+    "name": "TANH",
+    "syntax": "TANH(number)",
+    "example": "=TANH(1)",
+    "paramNotes": "number/数值",
+    "purpose": "三角函数与角度转换 / Trigonometry",
+    "note": "—"
+  },
+  {
+    "name": "TBILLEQ",
+    "syntax": "TBILLEQ(number1, number2, number3)",
+    "example": "=TBILLEQ(1, 1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "TBILLPRICE",
+    "syntax": "TBILLPRICE(number1, number2, number3)",
+    "example": "=TBILLPRICE(1, 1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "TBILLYIELD",
+    "syntax": "TBILLYIELD(number1, number2, number3)",
+    "example": "=TBILLYIELD(1, 1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "TDIST",
+    "syntax": "TDIST(number1, number2, integer3)",
+    "example": "=TDIST(1, 1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, integer3/整数3",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "TDIST2T",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "TDISTRT",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "TEXT",
+    "syntax": "TEXT(value, format_text)",
+    "example": "=TEXT(1, \"text\")",
+    "paramNotes": "value/值, format_text/格式",
+    "purpose": "文本处理 / Text processing",
+    "note": "—"
+  },
+  {
+    "name": "TIME",
+    "syntax": "TIME(hour, minute, second)",
+    "example": "=TIME(1, 1, 1)",
+    "paramNotes": "hour/时, minute/分, second/秒",
+    "purpose": "日期与时间处理 / Date and time handling",
+    "note": "—"
+  },
+  {
+    "name": "TIMEVALUE",
+    "syntax": "TIMEVALUE(text)",
+    "example": "=TIMEVALUE(\"text\")",
+    "paramNotes": "text/文本",
+    "purpose": "日期与时间处理 / Date and time handling",
+    "note": "—"
+  },
+  {
+    "name": "TINV",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "TINV2T",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "TODAY",
+    "syntax": "TODAY()",
+    "example": "=TODAY()",
+    "paramNotes": "无参数 / No parameters",
+    "purpose": "返回当前日期 / Return current date",
+    "note": "—"
+  },
+  {
+    "name": "TRANSPOSE",
+    "syntax": "TRANSPOSE(range)",
+    "example": "=TRANSPOSE(A1:A5)",
+    "paramNotes": "range/范围",
+    "purpose": "数组与矩阵处理 / Array and matrix operations",
+    "note": "—"
+  },
+  {
+    "name": "TRIM",
+    "syntax": "TRIM(text)",
+    "example": "=TRIM(\"text\")",
+    "paramNotes": "text/文本",
+    "purpose": "文本处理 / Text processing",
+    "note": "—"
+  },
+  {
+    "name": "TRUE",
+    "syntax": "TRUE()",
+    "example": "=TRUE()",
+    "paramNotes": "无参数 / No parameters",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "TRUNC",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "TTEST",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "UNICHAR",
+    "syntax": "UNICHAR(number)",
+    "example": "=UNICHAR(1)",
+    "paramNotes": "number/数值",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "UNICODE",
+    "syntax": "UNICODE(text)",
+    "example": "=UNICODE(\"text\")",
+    "paramNotes": "text/文本",
+    "purpose": "通用计算 / General calculation",
+    "note": "—"
+  },
+  {
+    "name": "UPPER",
+    "syntax": "UPPER(text)",
+    "example": "=UPPER(\"text\")",
+    "paramNotes": "text/文本",
+    "purpose": "文本处理 / Text processing",
+    "note": "—"
+  },
+  {
+    "name": "VALUE",
+    "syntax": "VALUE(text)",
+    "example": "=VALUE(1)",
+    "paramNotes": "text/文本",
+    "purpose": "文本处理 / Text processing",
+    "note": "—"
+  },
+  {
+    "name": "VAR",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "VAR.P",
+    "syntax": "VAR.P(value)",
+    "example": "=VAR.P(1)",
+    "paramNotes": "value/值",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "VAR.S",
+    "syntax": "VAR.S(value)",
+    "example": "=VAR.S(1)",
+    "paramNotes": "value/值",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "VARA",
+    "syntax": "VARA(value)",
+    "example": "=VARA(1)",
+    "paramNotes": "value/值",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "VARP",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "VARPA",
+    "syntax": "VARPA(value)",
+    "example": "=VARPA(1)",
+    "paramNotes": "value/值",
+    "purpose": "统计与汇总计算 / Statistical and aggregate calculations",
+    "note": "—"
+  },
+  {
+    "name": "VARS",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "VERSION",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "VLOOKUP",
+    "syntax": "VLOOKUP(lookup_value, table, return_col, join_col)",
+    "example": "=VLOOKUP(1, A1:A5, 1, TRUE)",
+    "paramNotes": "lookup_value/查找值, table/表, return_col/返回列, join_col/匹配列",
+    "purpose": "按匹配列查找并返回指定列值 / Lookup by key column and return a target column value",
+    "note": "—"
+  },
+  {
+    "name": "WEEKDAY",
+    "syntax": "WEEKDAY(number1, number2)",
+    "example": "=WEEKDAY(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "日期与时间处理 / Date and time handling",
+    "note": "—"
+  },
+  {
+    "name": "WEEKNUM",
+    "syntax": "WEEKNUM(number1, number2)",
+    "example": "=WEEKNUM(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2",
+    "purpose": "日期与时间处理 / Date and time handling",
+    "note": "—"
+  },
+  {
+    "name": "WEIBULL",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "WEIBULL.DIST",
+    "syntax": "WEIBULL.DIST(number1, number2, number3, condition4)",
+    "example": "=WEIBULL.DIST(1, 1, 1, TRUE)",
+    "paramNotes": "number1/数值1, number2/数值2, number3/数值3, condition4/条件4",
+    "purpose": "统计分布函数 / Statistical distributions",
+    "note": "—"
+  },
+  {
+    "name": "WEIBULLDIST",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  },
+  {
+    "name": "WORKDAY",
+    "syntax": "WORKDAY(number1, number2, [range3])",
+    "example": "=WORKDAY(1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, range3/范围3 (optional/可选)",
+    "purpose": "日期与时间处理 / Date and time handling",
+    "note": "—"
+  },
+  {
+    "name": "WORKDAY.INTL",
+    "syntax": "WORKDAY.INTL(number1, number2, value3, [range4])",
+    "example": "=WORKDAY.INTL(1, 1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, value3/值3, range4/范围4 (optional/可选)",
+    "purpose": "日期与时间处理 / Date and time handling",
+    "note": "—"
+  },
+  {
+    "name": "XLOOKUP",
+    "syntax": "XLOOKUP(lookup_value, table, join_col, [return_col], [if_not_found], [number6])",
+    "example": "=XLOOKUP(1, A1:A5, A1:A5)",
+    "paramNotes": "lookup_value/查找值, table/表, join_col/匹配列, return_col/返回列 (optional/可选), if_not_found/未找到返回值 (optional/可选), number6/数值6 (optional/可选)",
+    "purpose": "按匹配列查找并返回指定列值 / Lookup by key column and return a target column value",
+    "note": "—"
+  },
+  {
+    "name": "XNPV",
+    "syntax": "XNPV(number1, range2, range3)",
+    "example": "=XNPV(1, A1:A5, A1:A5)",
+    "paramNotes": "number1/数值1, range2/范围2, range3/范围3",
+    "purpose": "财务计算 / Financial calculations",
+    "note": "—"
+  },
+  {
+    "name": "XOR",
+    "syntax": "XOR(condition)",
+    "example": "=XOR(TRUE)",
+    "paramNotes": "condition/条件",
+    "purpose": "逻辑判断与条件处理 / Logical conditions",
+    "note": "—"
+  },
+  {
+    "name": "YEAR",
+    "syntax": "YEAR(number)",
+    "example": "=YEAR(1)",
+    "paramNotes": "number/数值",
+    "purpose": "日期与时间处理 / Date and time handling",
+    "note": "—"
+  },
+  {
+    "name": "YEARFRAC",
+    "syntax": "YEARFRAC(number1, number2, integer3)",
+    "example": "=YEARFRAC(1, 1, 1)",
+    "paramNotes": "number1/数值1, number2/数值2, integer3/整数3",
+    "purpose": "日期与时间处理 / Date and time handling",
+    "note": "—"
+  },
+  {
+    "name": "Z.TEST",
+    "syntax": "Z.TEST(range1, number2, [number3])",
+    "example": "=Z.TEST(A1:A5, 1)",
+    "paramNotes": "range1/范围1, number2/数值2, number3/数值3 (optional/可选)",
+    "purpose": "统计分布函数 / Statistical distributions",
+    "note": "—"
+  },
+  {
+    "name": "ZTEST",
+    "syntax": "—",
+    "example": "—",
+    "paramNotes": "—",
+    "purpose": "不可用 / Unavailable",
+    "note": "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup"
+  }
+]
