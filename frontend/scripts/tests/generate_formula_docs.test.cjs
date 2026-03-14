@@ -72,3 +72,26 @@ test("inject should replace markers", () => {
     "injected content should include new table header"
   );
 });
+
+// ### 变更记录
+// - 2026-03-15 00:30: 原因=新增公式提示JSON输出; 目的=保障UI数据源完整
+// - 2026-03-15 00:30: 原因=避免遗漏字段; 目的=断言关键属性存在
+test("formula help data should be exported", () => {
+  // ### 变更记录
+  // - 2026-03-15 00:30: 原因=生成器需提供结构化数据; 目的=供前端抽屉使用
+  const { buildFormulaHelpData } = require("../generate_formula_docs.cjs");
+  const data = buildFormulaHelpData();
+  if (!Array.isArray(data)) {
+    throw new Error("formula help data should be an array");
+  }
+  if (data.length === 0) {
+    throw new Error("formula help data should not be empty");
+  }
+  const sample = data[0];
+  if (!sample || typeof sample !== "object") {
+    throw new Error("formula help item should be an object");
+  }
+  if (!("name" in sample) || !("syntax" in sample) || !("example" in sample)) {
+    throw new Error("formula help item should include name/syntax/example");
+  }
+});
