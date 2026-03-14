@@ -44,6 +44,9 @@ import { inferFillValues, shiftFormulaReferences } from "../utils/formulaFill.js
 // **[2026-03-14]** 变更原因：批量公式需要统一计算涉及页
 // **[2026-03-14]** 变更目的：为批量刷新提供可测试的纯函数支撑
 import { collectFormulaPages } from "../utils/collectFormulaPages";
+// **[2026-03-14]** 变更原因：单元格需展示公式等待态
+// **[2026-03-14]** 变更目的：计算并维护 pending key 集合
+import { collectFormulaPendingKeys } from "../utils/collectFormulaPendingKeys";
 import { fetchGridData, fetchFilterValues, updateCell, batchUpdateCells } from "../utils/GridAPI";
 
 const buildFormulaKey = (col: number, row: number) => `${row},${col}`;
@@ -364,6 +367,31 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
   // - 2026-02-16: 原因=单页数据无法覆盖; 目的=跨页保持列级状
   const [formulaColumns, setFormulaColumns] = useState<FormulaColumnMeta[]>([]);
     const [version, setVersion] = useState<number>(0); // Force update version with timestamp
+    // ### 变更记录
+    // - 2026-03-14: 原因=公式回显存在等待; 目的=单元格内展示“计算中”
+    // - 2026-03-14: 原因=批量/单格共用逻辑; 目的=统一 pending 状态管理
+    // - 2026-03-14: 原因=需要去重渲染; 目的=Set 结构便于去重
+    const [pendingFormulaKeys, setPendingFormulaKeys] = useState<Set<string>>(new Set());
+    // ### 变更记录
+    // - 2026-03-14: 原因=批量/单格公式需立即反馈; 目的=追加 pending key
+    // - 2026-03-14: 原因=避免直接突变 Set; 目的=保持状态不可变
+    const addPendingFormulaKeys = useCallback((keys: Set<string>) => {
+        setPendingFormulaKeys((prev) => {
+            const next = new Set(prev);
+            keys.forEach((key) => next.add(key));
+            return next;
+        });
+    }, []);
+    // ### 变更记录
+    // - 2026-03-14: 原因=刷新完成后需恢复显示; 目的=清理 pending key
+    // - 2026-03-14: 原因=避免直接突变 Set; 目的=保持状态不可变
+    const clearPendingFormulaKeys = useCallback((keys: Set<string>) => {
+        setPendingFormulaKeys((prev) => {
+            const next = new Set(prev);
+            keys.forEach((key) => next.delete(key));
+            return next;
+        });
+    }, []);
     const [selection, setSelection] = useState<GridSelection | undefined>(undefined);
     
     // UI States
@@ -1998,6 +2026,12 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
        const formattedDisplay = style?.format
            ? formatCellValue(displayStr, style.format)
            : displayStr;
+       // ### 变更记录
+       // - 2026-03-14: 原因=公式回显存在等待; 目的=单元格内显示等待态
+       // - 2026-03-14: 原因=只影响显示; 目的=不改写原始数据
+       const pendingDisplay = pendingFormulaKeys.has(cellKey)
+           ? "⏳ 计算中…"
+           : formattedDisplay;
 
        // 2. Handle Merges (Global Lookup)
        const mergeKey = cellToMergeMap.current.get(cellKey);
@@ -2052,8 +2086,10 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
             kind: GridCellKind.Text,
             allowOverlay: true,
             readonly: readonly,
-            displayData: formattedDisplay,
+            displayData: pendingDisplay,
             data: rawValue,
+            // ### 变更记录
+            // - 2026-03-14: 原因=等待态仅用于显示; 目的=复制仍保留真实展示值
             copyData: formattedDisplay,
             themeOverride,
             contentAlign,
@@ -2062,7 +2098,7 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
             allowWrapping: true // Added
        };
     },
-    [fetchPage, columns, realRowCount, realColCount, version, formulaColumnIndexSet, isReadOnly] 
+    [fetchPage, columns, realRowCount, realColCount, version, formulaColumnIndexSet, isReadOnly, pendingFormulaKeys] 
   );
 
   // **[2026-02-16]** 变更原因：支持多单元格批量编辑入口
@@ -2084,180 +2120,196 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
       // - 2026-03-14: 原因=批量公式不回显; 目的=预先计算涉及页
       // - 2026-03-14: 原因=批量下拉可能跨页; 目的=按页去重刷新
       const formulaPages = collectFormulaPages(newValues, PAGE_SIZE);
+      // ### 变更记录
+      // - 2026-03-14: 原因=公式回显存在等待; 目的=先标记等待态
+      // - 2026-03-14: 原因=批量下拉可能多公式; 目的=一次性收集 key
+      const pendingKeys = collectFormulaPendingKeys(newValues);
+      if (pendingKeys.size > 0) {
+        addPendingFormulaKeys(pendingKeys);
+      }
       (async () => {
-        const pages = new Set<number>();
-        for (const edit of newValues) {
-          const row = edit.location[1];
-          if (row < 0) continue;
-          pages.add(Math.floor(row / PAGE_SIZE) + 1);
-        }
-        const missingPages = Array.from(pages).filter(p => !cache.current.has(p));
-        if (missingPages.length > 0) {
-          await Promise.all(missingPages.map(p => fetchPage(p)));
-        }
-
-        // **[2026-02-16]** 变更原因：批量编辑需一次性构建更新集合
-        // **[2026-02-16]** 变更目的：统一发送到 batch_update_cells
-        const updates: { row: number, col: string, val: string }[] = [];
-        // **[2026-02-16]** 变更原因：支持批量编辑的 Undo/Redo
-        // **[2026-02-16]** 变更目的：与单元格编辑体验一致
-        const undoChanges: { row: number, col: number, oldValue: string, newValue: string, colName: string }[] = [];
-        // **[2026-02-16]** 变更原因：批量操作需触发列级失效
-        // **[2026-02-16]** 变更目的：通知外部刷新依赖列
-        const invalidatedCols = new Set<number>();
-        let skippedFormula = 0;
-        let skippedOutOfRange = 0;
-
-        for (const edit of newValues) {
-          const [col, row] = edit.location;
-          if (col < 0 || row < 0 || col >= columns.length || row >= rowCount) {
-            skippedOutOfRange += 1;
-            continue;
+        try {
+          const pages = new Set<number>();
+          for (const edit of newValues) {
+            const row = edit.location[1];
+            if (row < 0) continue;
+            pages.add(Math.floor(row / PAGE_SIZE) + 1);
           }
-          if (formulaColumnIndexSet.has(col)) {
-            skippedFormula += 1;
-            continue;
+          const missingPages = Array.from(pages).filter(p => !cache.current.has(p));
+          if (missingPages.length > 0) {
+            await Promise.all(missingPages.map(p => fetchPage(p)));
           }
-          if (edit.value.kind !== GridCellKind.Text) {
-            continue;
-          }
-          const colName = columns[col]?.id;
-          if (!colName) {
-            skippedOutOfRange += 1;
-            continue;
-          }
-          const page = Math.floor(row / PAGE_SIZE) + 1;
-          const pageData = cache.current.get(page);
-          const rowInPage = row % PAGE_SIZE;
-          const oldValue = pageData?.data?.[rowInPage]?.[col];
-          const raw = edit.value.data;
-          const newValue = typeof raw === "string" ? raw : String(raw ?? "");
-          undoChanges.push({ row, col, oldValue: String(oldValue ?? ""), newValue, colName });
-          updates.push({ row, col: colName, val: newValue });
-          // **[2026-02-16]** 变更原因：批量更新仍要解析公式元信息
-          // **[2026-02-16]** 变更目的：保证公式栏stale 状态一致
-          applyFormulaMetaFromValue(col, row, newValue);
-          invalidatedCols.add(col);
-          let nextPageData = pageData;
-          if (!nextPageData) {
-            nextPageData = {
-              data: [],
-              columns: columns.map(c => c.id ?? ""),
-              total_rows: rowCount,
-              metadata: undefined
-            };
-            cache.current.set(page, nextPageData);
-          }
-          if (!nextPageData.data[rowInPage]) {
-            nextPageData.data[rowInPage] = [];
-          }
-          nextPageData.data[rowInPage][col] = newValue;
-        }
 
-        if (updates.length === 0) {
-          if (skippedFormula > 0) {
-            alert("插入公式列不允许批量编辑");
-          } else if (skippedOutOfRange > 0) {
-            alert("批量更新失败：目标超出范");
+          // **[2026-02-16]** 变更原因：批量编辑需一次性构建更新集合
+          // **[2026-02-16]** 变更目的：统一发送到 batch_update_cells
+          const updates: { row: number, col: string, val: string }[] = [];
+          // **[2026-02-16]** 变更原因：支持批量编辑的 Undo/Redo
+          // **[2026-02-16]** 变更目的：与单元格编辑体验一致
+          const undoChanges: { row: number, col: number, oldValue: string, newValue: string, colName: string }[] = [];
+          // **[2026-02-16]** 变更原因：批量操作需触发列级失效
+          // **[2026-02-16]** 变更目的：通知外部刷新依赖列
+          const invalidatedCols = new Set<number>();
+          let skippedFormula = 0;
+          let skippedOutOfRange = 0;
+
+          for (const edit of newValues) {
+            const [col, row] = edit.location;
+            if (col < 0 || row < 0 || col >= columns.length || row >= rowCount) {
+              skippedOutOfRange += 1;
+              continue;
+            }
+            if (formulaColumnIndexSet.has(col)) {
+              skippedFormula += 1;
+              continue;
+            }
+            if (edit.value.kind !== GridCellKind.Text) {
+              continue;
+            }
+            const colName = columns[col]?.id;
+            if (!colName) {
+              skippedOutOfRange += 1;
+              continue;
+            }
+            const page = Math.floor(row / PAGE_SIZE) + 1;
+            const pageData = cache.current.get(page);
+            const rowInPage = row % PAGE_SIZE;
+            const oldValue = pageData?.data?.[rowInPage]?.[col];
+            const raw = edit.value.data;
+            const newValue = typeof raw === "string" ? raw : String(raw ?? "");
+            undoChanges.push({ row, col, oldValue: String(oldValue ?? ""), newValue, colName });
+            updates.push({ row, col: colName, val: newValue });
+            // **[2026-02-16]** 变更原因：批量更新仍要解析公式元信息
+            // **[2026-02-16]** 变更目的：保证公式栏stale 状态一致
+            applyFormulaMetaFromValue(col, row, newValue);
+            invalidatedCols.add(col);
+            let nextPageData = pageData;
+            if (!nextPageData) {
+              nextPageData = {
+                data: [],
+                columns: columns.map(c => c.id ?? ""),
+                total_rows: rowCount,
+                metadata: undefined
+              };
+              cache.current.set(page, nextPageData);
+            }
+            if (!nextPageData.data[rowInPage]) {
+              nextPageData.data[rowInPage] = [];
+            }
+            nextPageData.data[rowInPage][col] = newValue;
           }
-          return;
-        }
 
-        // **[2026-02-16]** 变更原因：批量编辑完成后触发失效通知
-        // **[2026-02-16]** 变更目的：让外部依赖列刷新缓存
-        if (onInvalidateByColumn) {
-          for (const colIndex of invalidatedCols) {
-            onInvalidateByColumn(colIndex);
+          if (updates.length === 0) {
+            if (skippedFormula > 0) {
+              alert("插入公式列不允许批量编辑");
+            } else if (skippedOutOfRange > 0) {
+              alert("批量更新失败：目标超出范");
+            }
+            return;
           }
-        }
 
-        if (undoChanges.length > 0) {
-          undoStack.current.push({
-            type: "batch-update",
-            changes: undoChanges
-          });
-          redoStack.current = [];
-          notifyStackChange();
-        }
-
-        forceUpdate({});
-        setVersion(v => v + 1);
-
-        const CHUNK_CELL_LIMIT = 25000;
-        const updateChunks: { row: number, col: string, val: string }[][] = [];
-        let currentChunk: { row: number, col: string, val: string }[] = [];
-        for (const update of updates) {
-          currentChunk.push(update);
-          if (currentChunk.length >= CHUNK_CELL_LIMIT) {
-            updateChunks.push(currentChunk);
-            currentChunk = [];
+          // **[2026-02-16]** 变更原因：批量编辑完成后触发失效通知
+          // **[2026-02-16]** 变更目的：让外部依赖列刷新缓存
+          if (onInvalidateByColumn) {
+            for (const colIndex of invalidatedCols) {
+              onInvalidateByColumn(colIndex);
+            }
           }
-        }
-        if (currentChunk.length > 0) {
-          updateChunks.push(currentChunk);
-        }
 
-        let effectiveSessionId = normalizedSessionId;
-        const refreshAfterFailure = () => {
-          cache.current.clear();
-          setVersion(v => v + 1);
-          fetchPage(1);
-        };
-
-        // **[2026-02-16]** 变更原因：避免一次性提交过多单元格
-        // **[2026-02-16]** 变更目的：降低服务端压力并保持响应
-        for (const chunk of updateChunks) {
-          try {
-            const json = await batchUpdateCells({
-                table_name: tableName,
-                session_id: effectiveSessionId,
-                updates: chunk
+          if (undoChanges.length > 0) {
+            undoStack.current.push({
+              type: "batch-update",
+              changes: undoChanges
             });
+            redoStack.current = [];
+            notifyStackChange();
+          }
 
-            if (json.status !== "ok") {
-              alert("批量更新失败: " + (json.message || "batch_failed"));
+          forceUpdate({});
+          setVersion(v => v + 1);
+
+          const CHUNK_CELL_LIMIT = 25000;
+          const updateChunks: { row: number, col: string, val: string }[][] = [];
+          let currentChunk: { row: number, col: string, val: string }[] = [];
+          for (const update of updates) {
+            currentChunk.push(update);
+            if (currentChunk.length >= CHUNK_CELL_LIMIT) {
+              updateChunks.push(currentChunk);
+              currentChunk = [];
+            }
+          }
+          if (currentChunk.length > 0) {
+            updateChunks.push(currentChunk);
+          }
+
+          let effectiveSessionId = normalizedSessionId;
+          const refreshAfterFailure = () => {
+            cache.current.clear();
+            setVersion(v => v + 1);
+            fetchPage(1);
+          };
+
+          // **[2026-02-16]** 变更原因：避免一次性提交过多单元格
+          // **[2026-02-16]** 变更目的：降低服务端压力并保持响应
+          for (const chunk of updateChunks) {
+            try {
+              const json = await batchUpdateCells({
+                  table_name: tableName,
+                  session_id: effectiveSessionId,
+                  updates: chunk
+              });
+
+              if (json.status !== "ok") {
+                alert("批量更新失败: " + (json.message || "batch_failed"));
+                refreshAfterFailure();
+                return;
+              }
+              if (json.session_id && json.session_id !== effectiveSessionId) {
+                effectiveSessionId = json.session_id;
+                onSessionChange?.(json.session_id);
+              }
+            } catch (e) {
+              const message = e instanceof Error ? e.message : String(e);
+              alert("批量更新失败: " + message);
+              console.error("[GlideGrid] Batch edit failed:", e);
               refreshAfterFailure();
               return;
             }
-            if (json.session_id && json.session_id !== effectiveSessionId) {
-              effectiveSessionId = json.session_id;
-              onSessionChange?.(json.session_id);
-            }
-          } catch (e) {
-            const message = e instanceof Error ? e.message : String(e);
-            alert("批量更新失败: " + message);
-            console.error("[GlideGrid] Batch edit failed:", e);
-            refreshAfterFailure();
-            return;
           }
-        }
 
-        // ### 变更记录
-        // - 2026-03-14: 原因=公式结果依赖后端计算; 目的=提交后回拉计算结果
-        // - 2026-03-14: 原因=批量下拉可能跨页; 目的=按涉及页去重刷新
-        // - 2026-03-14: 原因=刷新失败不应阻塞批量流程; 目的=最佳努力刷新
-        if (formulaPages.size > 0) {
-          const refreshTasks = Array.from(formulaPages).map(async (page) => {
-            cache.current.delete(page);
-            await fetchPage(page);
-          });
-          const refreshResults = await Promise.allSettled(refreshTasks);
-          for (const result of refreshResults) {
-            if (result.status === "rejected") {
-              console.warn("[GlideGrid] Formula page refresh failed:", result.reason);
+          // ### 变更记录
+          // - 2026-03-14: 原因=公式结果依赖后端计算; 目的=提交后回拉计算结果
+          // - 2026-03-14: 原因=批量下拉可能跨页; 目的=按涉及页去重刷新
+          // - 2026-03-14: 原因=刷新失败不应阻塞批量流程; 目的=最佳努力刷新
+          if (formulaPages.size > 0) {
+            const refreshTasks = Array.from(formulaPages).map(async (page) => {
+              cache.current.delete(page);
+              await fetchPage(page);
+            });
+            const refreshResults = await Promise.allSettled(refreshTasks);
+            for (const result of refreshResults) {
+              if (result.status === "rejected") {
+                console.warn("[GlideGrid] Formula page refresh failed:", result.reason);
+              }
             }
           }
-        }
 
-        if (skippedFormula > 0) {
-          alert("部分更新被忽略：包含公式");
-        } else if (skippedOutOfRange > 0) {
-          alert("部分更新被忽略：目标超出范围");
+          if (skippedFormula > 0) {
+            alert("部分更新被忽略：包含公式");
+          } else if (skippedOutOfRange > 0) {
+            alert("部分更新被忽略：目标超出范围");
+          }
+        } finally {
+          // ### 变更记录
+          // - 2026-03-14: 原因=提交/刷新可能提前返回; 目的=确保等待态清理
+          // - 2026-03-14: 原因=避免卡在“计算中”; 目的=始终回到真实显示
+          if (pendingKeys.size > 0) {
+            clearPendingFormulaKeys(pendingKeys);
+          }
         }
       })();
       return true;
     },
-    [applyFormulaMetaFromValue, columns, fetchPage, formulaColumnIndexSet, isReadOnly, notifyStackChange, onInvalidateByColumn, onSessionChange, rowCount, sessionId, tableName]
+    [applyFormulaMetaFromValue, columns, fetchPage, formulaColumnIndexSet, isReadOnly, notifyStackChange, onInvalidateByColumn, onSessionChange, rowCount, sessionId, tableName, addPendingFormulaKeys, clearPendingFormulaKeys]
   );
 
   const fillRange = useCallback(
@@ -2381,23 +2433,33 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
       const originalInput = newValue.data;
       const isFormulaInput = typeof originalInput === "string" && originalInput.trim().startsWith("=");
       let finalData = newValue.data;
+      // ### 变更记录
+      // - 2026-03-14: 原因=公式回显存在等待; 目的=单元格内显示“计算中”
+      // - 2026-03-14: 原因=仅作用公式输入; 目的=避免普通编辑误触发
+      const pendingKeySet = isFormulaInput
+          ? new Set([buildFormulaKey(col, row)])
+          : new Set<string>();
+      if (pendingKeySet.size > 0) {
+          addPendingFormulaKeys(pendingKeySet);
+      }
 
-      if (typeof originalInput === "string" && originalInput.trim().startsWith("=")) {
-          const parsed = parseAggregateFormula(originalInput.trim());
-          const rangeInfo = getRangeInfo(parsed);
-          if (rangeInfo && rangeInfo.columns.length > 0) {
-              onFormulaMetaChange?.(cell[0], cell[1], {
-                  formula: originalInput.trim(),
-                  columns: rangeInfo.columns,
-                  stale: false,
-                  lastUpdatedAt: new Date().toISOString()
-              });
+      try {
+          if (typeof originalInput === "string" && originalInput.trim().startsWith("=")) {
+              const parsed = parseAggregateFormula(originalInput.trim());
+              const rangeInfo = getRangeInfo(parsed);
+              if (rangeInfo && rangeInfo.columns.length > 0) {
+                  onFormulaMetaChange?.(cell[0], cell[1], {
+                      formula: originalInput.trim(),
+                      columns: rangeInfo.columns,
+                      stale: false,
+                      lastUpdatedAt: new Date().toISOString()
+                  });
+              } else {
+                  onFormulaMetaChange?.(cell[0], cell[1], null);
+              }
           } else {
               onFormulaMetaChange?.(cell[0], cell[1], null);
           }
-      } else {
-          onFormulaMetaChange?.(cell[0], cell[1], null);
-      }
 
       // --- Backend Formula Interception ---
       const AGG_REGEX = /^=\s*(SUM|COUNT|COUNTA|AVG|AVERAGE|MAX|MIN)\s*\(\s*([A-Z]+)\s*:\s*([A-Z]+)\s*\)\s*$/i;
@@ -2697,7 +2759,10 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
                // Formula cells sometimes need a fresh page pull to reflect computed value
                if (isFormulaInput) {
                    cache.current.delete(page);
-                   fetchPage(page);
+                   // ### 变更记录
+                   // - 2026-03-14: 原因=等待态需覆盖到刷新完成; 目的=等待拉取结束
+                   // - 2026-03-14: 原因=避免瞬间取消等待; 目的=回显后再恢复
+                   await fetchPage(page);
                }
           } else {
                const message = data.error_message || data.message || "Unknown error";
@@ -2709,9 +2774,16 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
           const errorMessage = e instanceof Error ? e.message : String(e);
           alert(`更新失败: ${errorMessage}`);
           // Revert? For POC, simple alert is enough.
+      } finally {
+          // ### 变更记录
+          // - 2026-03-14: 原因=提交/刷新可能失败或提前返回; 目的=确保清理等待态
+          // - 2026-03-14: 原因=避免卡在“计算中”; 目的=始终回到真实显示
+          if (pendingKeySet.size > 0) {
+              clearPendingFormulaKeys(pendingKeySet);
+          }
       }
     },
-    [sessionId, tableName, columns, isReadOnly, notifyStackChange, formulaColumns, fetchPage]
+    [sessionId, tableName, columns, isReadOnly, notifyStackChange, formulaColumns, fetchPage, addPendingFormulaKeys, clearPendingFormulaKeys]
   );
 
   const onGridSelectionChange = useCallback((newSelection: GridSelection) => {
