@@ -231,28 +231,60 @@ function buildFormulaDocsTable(functionNames) {
 // - 2026-03-14 22:05: 原因=README 注入需要完整区块; 目的=集中输出标记块内容
 // - 2026-03-14 22:05: 原因=函数列表为空时需提示; 目的=避免 README 空白
 // - 2026-03-14 23:05: 原因=表头新增列; 目的=保持空表结构一致
+// - 2026-03-14 23:35: 原因=避免多余空行; 目的=保持注入前后一致
 function buildFormulaDocsSection() {
   const functionNames = getRegisteredFunctions();
   const table =
     functionNames.length > 0
       ? buildFormulaDocsTable(functionNames)
       : "| 函数名 / Function | 语法 / Syntax | 示例 / Example | 参数说明 / Parameter Notes | 用途 / Purpose | 备注 / Notes |\n| --- | --- | --- | --- | --- | --- |\n| 无 / None | — | — | — | — | 未读取到函数列表 / Function list empty |";
-  return `${FORMULA_DOCS_START}\n${table}\n${FORMULA_DOCS_END}\n`;
+  return `${FORMULA_DOCS_START}\n${table}\n${FORMULA_DOCS_END}`;
 }
 
 // ### 变更记录
 // - 2026-03-14 22:20: 原因=注入逻辑需要纯函数便于测试; 目的=避免直接写文件导致测试副作用
 // - 2026-03-14 22:20: 原因=标记块替换需安全; 目的=缺失标记时直接抛错
+// - 2026-03-14 23:20: 原因=新增 --check 模式; 目的=复用同一替换逻辑进行对比
 function buildInjectedContent(rawContent) {
-  const startIndex = rawContent.indexOf(FORMULA_DOCS_START);
-  const endIndex = rawContent.indexOf(FORMULA_DOCS_END);
+  const normalized = normalizeLineEndings(rawContent);
+  const lineEnding = rawContent.includes("\r\n") ? "\r\n" : "\n";
+  const startIndex = normalized.indexOf(FORMULA_DOCS_START);
+  const endIndex = normalized.indexOf(FORMULA_DOCS_END);
   if (startIndex < 0 || endIndex < 0 || endIndex < startIndex) {
     throw new Error("Formula docs markers not found");
   }
-  const before = rawContent.slice(0, startIndex);
-  const after = rawContent.slice(endIndex + FORMULA_DOCS_END.length);
+  const before = normalized.slice(0, startIndex);
+  const after = normalized.slice(endIndex + FORMULA_DOCS_END.length);
   const section = buildFormulaDocsSection();
-  return `${before}${section}${after}`;
+  const injected = `${before}${section}${after}`;
+  return applyLineEnding(injected, lineEnding);
+}
+
+// ### 变更记录
+// - 2026-03-14 23:30: 原因=Windows 下存在 CRLF; 目的=保持行尾风格一致
+// - 2026-03-14 23:30: 原因=避免对比误报; 目的=统一行尾标准化
+function normalizeLineEndings(content) {
+  return String(content ?? "").replace(/\r\n/g, "\n");
+}
+
+// ### 变更记录
+// - 2026-03-14 23:30: 原因=保持原文件行尾格式; 目的=避免不必要的 diff
+// - 2026-03-14 23:30: 原因=CI 对比需要稳定输出; 目的=减少误报
+function applyLineEnding(content, lineEnding) {
+  if (lineEnding === "\r\n") {
+    return normalizeLineEndings(content).replace(/\n/g, "\r\n");
+  }
+  return normalizeLineEndings(content);
+}
+
+// ### 变更记录
+// - 2026-03-14 23:20: 原因=CI 需要检查 README 是否最新; 目的=提供只读比对能力
+// - 2026-03-14 23:20: 原因=避免重复读取逻辑; 目的=复用注入函数
+// - 2026-03-14 23:30: 原因=处理 CRLF 差异; 目的=防止误判为不一致
+function isReadmeUpToDate(filePath) {
+  const raw = fs.readFileSync(filePath, "utf8");
+  const next = buildInjectedContent(raw);
+  return raw === next;
 }
 
 // ### 变更记录
@@ -276,14 +308,36 @@ function getDefaultReadmePaths() {
 // ### 变更记录
 // - 2026-03-14 22:20: 原因=便于命令行执行; 目的=支持传入路径或使用默认路径
 // - 2026-03-14 22:20: 原因=避免静默失败; 目的=明确输出处理结果
+// - 2026-03-14 23:20: 原因=支持 CI 校验; 目的=新增 --check 模式
+// - 2026-03-14 23:20: 原因=package.json 新增 docs:formulas 脚本; 目的=统一 CLI 入口与 CI 调用
 function runCli() {
   const args = process.argv.slice(2);
-  const targets = args.length > 0 ? args : getDefaultReadmePaths();
-  targets.forEach((filePath) => {
-    writeFormulaDocsToFile(filePath);
-    // eslint-disable-next-line no-console
-    console.log(`[formula-docs] updated ${filePath}`);
+  const checkMode = args.includes("--check");
+  const targets = args.filter((arg) => arg !== "--check");
+  const files = targets.length > 0 ? targets : getDefaultReadmePaths();
+  let hasDiff = false;
+
+  files.forEach((filePath) => {
+    if (checkMode) {
+      const upToDate = isReadmeUpToDate(filePath);
+      if (!upToDate) {
+        hasDiff = true;
+        // eslint-disable-next-line no-console
+        console.error(`[formula-docs] out of date: ${filePath}`);
+      } else {
+        // eslint-disable-next-line no-console
+        console.log(`[formula-docs] ok: ${filePath}`);
+      }
+    } else {
+      writeFormulaDocsToFile(filePath);
+      // eslint-disable-next-line no-console
+      console.log(`[formula-docs] updated ${filePath}`);
+    }
   });
+
+  if (checkMode && hasDiff) {
+    process.exitCode = 1;
+  }
 }
 
 // ### 变更记录
@@ -297,6 +351,7 @@ module.exports = {
   buildInjectedContent,
   writeFormulaDocsToFile,
   getDefaultReadmePaths,
+  isReadmeUpToDate,
   runCli,
 };
 

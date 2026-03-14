@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "docs:formulas": "node scripts/generate_formula_docs.cjs",
+    "docs:formulas:check": "node scripts/generate_formula_docs.cjs --check"
   },
   "dependencies": {
     "@fortune-sheet/react": "^1.0.4",

@@ -1,0 +1,42 @@
+﻿# **[2026-03-14 23:30]** 变更原因=接入CI校验公式文档; 变更目的=保证README与公式版本一致
+name: Formula Docs Check
+
+on:
+  # **[2026-03-14 23:30]** 变更原因=仅在相关文件变更时触发; 变更目的=降低CI开销
+  push:
+    paths:
+      - "README.md"
+      - "frontend/README.md"
+      - "frontend/scripts/**"
+      - "frontend/package.json"
+      - "frontend/package-lock.json"
+      - ".github/workflows/formula-docs.yml"
+  # **[2026-03-14 23:30]** 变更原因=合并前必须校验; 变更目的=阻止文档漂移
+  pull_request:
+    paths:
+      - "README.md"
+      - "frontend/README.md"
+      - "frontend/scripts/**"
+      - "frontend/package.json"
+      - "frontend/package-lock.json"
+      - ".github/workflows/formula-docs.yml"
+
+jobs:
+  formula-docs:
+    # **[2026-03-14 23:30]** 变更原因=使用通用Runner; 变更目的=确保环境稳定
+    runs-on: ubuntu-latest
+    steps:
+      # **[2026-03-14 23:30]** 变更原因=拉取代码; 变更目的=保证脚本读取到最新README
+      - uses: actions/checkout@v4
+      # **[2026-03-14 23:30]** 变更原因=需要Node运行脚本; 变更目的=指定稳定版本
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      # **[2026-03-14 23:30]** 变更原因=脚本依赖hyperformula; 变更目的=安装前端依赖
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+      # **[2026-03-14 23:30]** 变更原因=CI必须校验README一致性; 变更目的=防止文档漂移
+      - name: Check formula docs
+        working-directory: frontend
+        run: npm run docs:formulas:check
