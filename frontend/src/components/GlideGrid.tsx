@@ -47,6 +47,9 @@ import { collectFormulaPages } from "../utils/collectFormulaPages";
 // **[2026-03-14]** 变更原因：单元格需展示公式等待态
 // **[2026-03-14]** 变更目的：计算并维护 pending key 集合
 import { collectFormulaPendingKeys } from "../utils/collectFormulaPendingKeys";
+// **[2026-03-14]** 变更原因：公式失败需要统一提示文案
+// **[2026-03-14]** 变更目的：保证失败提示一致与可测试
+import { buildFormulaFailureNotice } from "../utils/buildFormulaFailureNotice";
 import { fetchGridData, fetchFilterValues, updateCell, batchUpdateCells } from "../utils/GridAPI";
 
 const buildFormulaKey = (col: number, row: number) => `${row},${col}`;
@@ -430,6 +433,26 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
     const pasteNoticeTimer = useRef<number | undefined>(undefined);
     const pasteNoticeToken = useRef(0);
     const pasteEnvLogged = useRef(false);
+    // ### 变更记录
+    // - 2026-03-14: 原因=公式更新失败缺乏提示; 目的=展示轻量提示条
+    // - 2026-03-14: 原因=需要自动隐藏; 目的=不打断用户操作
+    const [formulaNoticeVisible, setFormulaNoticeVisible] = useState(false);
+    const [formulaNoticeMessage, setFormulaNoticeMessage] = useState("");
+    const formulaNoticeTimer = useRef<number | undefined>(undefined);
+    // ### 变更记录
+    // - 2026-03-14: 原因=避免提示叠加; 目的=复用统一入口
+    // - 2026-03-14: 原因=提示需 3 秒自动消失; 目的=避免干扰
+    const showFormulaNotice = useCallback((message: string) => {
+        setFormulaNoticeMessage(message);
+        setFormulaNoticeVisible(true);
+        if (formulaNoticeTimer.current !== undefined) {
+            window.clearTimeout(formulaNoticeTimer.current);
+        }
+        formulaNoticeTimer.current = window.setTimeout(() => {
+            setFormulaNoticeVisible(false);
+            formulaNoticeTimer.current = undefined;
+        }, 3000);
+    }, []);
     // ### 变更记录
     // - 2026-02-17: 原因=聚合函数名单来自工具函数; 目的=提示与检测一
     // - 2026-02-17: 原因=只初始化一 目的=避免重复创建
@@ -837,6 +860,12 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
       if (pasteNoticeTimer.current !== undefined) {
         window.clearTimeout(pasteNoticeTimer.current);
         pasteNoticeTimer.current = undefined;
+      }
+      // ### 变更记录
+      // - 2026-03-14: 原因=提示条计时器需清理; 目的=避免泄漏
+      if (formulaNoticeTimer.current !== undefined) {
+        window.clearTimeout(formulaNoticeTimer.current);
+        formulaNoticeTimer.current = undefined;
       }
     };
   }, []);
@@ -2289,6 +2318,21 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
             for (const result of refreshResults) {
               if (result.status === "rejected") {
                 console.warn("[GlideGrid] Formula page refresh failed:", result.reason);
+                // ### 变更记录
+                // - 2026-03-14: 原因=刷新失败缺少提示; 目的=提示用户重试
+                // - 2026-03-14: 原因=批量可能包含多单元格; 目的=提示“等”
+                if (pendingKeys.size > 0) {
+                  const firstKey = pendingKeys.values().next().value as string | undefined;
+                  if (firstKey) {
+                    const [rowStr, colStr] = firstKey.split(",");
+                    const rowIndex = Number(rowStr);
+                    const colIndex = Number(colStr);
+                    // ### 变更记录
+                    // - 2026-03-14: 原因=批量提示需带“等”; 目的=保持文案一致
+                    const baseMessage = buildFormulaFailureNotice(colIndex, rowIndex, columns);
+                    showFormulaNotice(baseMessage.replace(" 更新失败，请重试", " 等更新失败，请重试"));
+                  }
+                }
               }
             }
           }
@@ -2309,7 +2353,7 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
       })();
       return true;
     },
-    [applyFormulaMetaFromValue, columns, fetchPage, formulaColumnIndexSet, isReadOnly, notifyStackChange, onInvalidateByColumn, onSessionChange, rowCount, sessionId, tableName, addPendingFormulaKeys, clearPendingFormulaKeys]
+    [applyFormulaMetaFromValue, columns, fetchPage, formulaColumnIndexSet, isReadOnly, notifyStackChange, onInvalidateByColumn, onSessionChange, rowCount, sessionId, tableName, addPendingFormulaKeys, clearPendingFormulaKeys, showFormulaNotice]
   );
 
   const fillRange = useCallback(
@@ -2773,6 +2817,12 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
           console.error("[GlideGrid] Update failed:", e);
           const errorMessage = e instanceof Error ? e.message : String(e);
           alert(`更新失败: ${errorMessage}`);
+          // ### 变更记录
+          // - 2026-03-14: 原因=公式更新失败缺少提示; 目的=提示用户重试
+          // - 2026-03-14: 原因=提示文案需统一; 目的=复用 buildFormulaFailureNotice
+          if (isFormulaInput) {
+              showFormulaNotice(buildFormulaFailureNotice(col, row, columns));
+          }
           // Revert? For POC, simple alert is enough.
       } finally {
           // ### 变更记录
@@ -3646,7 +3696,7 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
         rowHeight={(row) => rowSizes.get(row) ?? 34}
       />
 
-      {(importProgressVisible || pasteNoticeVisible) && (
+      {(importProgressVisible || pasteNoticeVisible || formulaNoticeVisible) && (
           <div
               style={{
                   position: "absolute",
@@ -3682,8 +3732,10 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
                           {importProgress.completed}/{importProgress.total}
                       </div>
                   </div>
-              ) : (
+              ) : pasteNoticeVisible ? (
                   "粘贴处理中，请稍等..."
+              ) : (
+                  formulaNoticeMessage
               )}
           </div>
       )}
