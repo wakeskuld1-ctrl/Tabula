@@ -3,9 +3,16 @@
 // - 2026-03-14 22:05: 原因=保留生成器可扩展性; 目的=将语法/示例生成逻辑拆分为函数
 // - 2026-03-14 22:05: 原因=满足双语输出要求; 目的=表头与备注同时提供中英文
 // - 2026-03-14 22:20: 原因=需要读写 README 文件; 目的=为注入逻辑准备 fs/path
+// - 2026-03-14 23:05: 原因=参数别名与用途说明需外部配置; 目的=引入别名映射表
 const fs = require("node:fs");
 const path = require("node:path");
 const { HyperFormula, FunctionArgumentType } = require("hyperformula");
+const {
+  typeAliases,
+  functionAliases,
+  functionPurposeOverrides,
+  purposeRules,
+} = require("./formula_alias_map.cjs");
 
 // ### 变更记录
 // - 2026-03-14 22:05: 原因=统一注入标记; 目的=避免 README 替换错位
@@ -21,6 +28,7 @@ const FUNCTION_LANGUAGE_CODE = "enGB";
 // ### 变更记录
 // - 2026-03-14 22:05: 原因=参数类型需映射为人类可读文本; 目的=生成双语语法提示
 // - 2026-03-14 22:05: 原因=示例需要稳定占位; 目的=避免不同平台输出不一致
+// - 2026-03-14 23:05: 原因=类型标签需与别名保持一致; 目的=统一映射入口
 const ARG_TYPE_LABELS = {
   NUMBER: "number",
   INTEGER: "integer",
@@ -41,6 +49,7 @@ const ARG_TYPE_LABELS = {
 // ### 变更记录
 // - 2026-03-14 22:05: 原因=示例需跟随类型; 目的=让每个函数拥有可读示例
 // - 2026-03-14 22:05: 原因=保持模板一致; 目的=便于批量清理与替换
+// - 2026-03-14 23:05: 原因=与别名类型对齐; 目的=避免示例与参数不一致
 const ARG_TYPE_EXAMPLES = {
   number: "1",
   integer: "1",
@@ -65,6 +74,7 @@ function escapeTableCell(value) {
 // ### 变更记录
 // - 2026-03-14 22:05: 原因=HyperFormula 类型可能为枚举或字符串; 目的=统一转换为文本标签
 // - 2026-03-14 22:05: 原因=缺失类型时需兜底; 目的=避免生成 undefined
+// - 2026-03-14 23:05: 原因=别名依赖规范化类型; 目的=保证参数别名一致
 function normalizeArgumentType(argumentType) {
   if (argumentType === undefined || argumentType === null) {
     return "value";
@@ -78,6 +88,17 @@ function normalizeArgumentType(argumentType) {
     return (ARG_TYPE_LABELS[upper] || upper || "value").toLowerCase();
   }
   return "value";
+}
+
+// ### 变更记录
+// - 2026-03-14 23:05: 原因=需要从别名表读取中英文映射; 目的=生成双语参数说明
+// - 2026-03-14 23:05: 原因=缺失映射时仍需输出; 目的=提供安全兜底
+function getTypeAlias(typeKey) {
+  const fallback = typeAliases?.value || { en: "value", cn: "值" };
+  if (!typeKey) {
+    return fallback;
+  }
+  return typeAliases?.[typeKey] || fallback;
 }
 
 // ### 变更记录
@@ -116,29 +137,77 @@ function getFunctionParameters(functionName) {
 // ### 变更记录
 // - 2026-03-14 22:05: 原因=语法与示例需保持同步; 目的=统一由一处生成
 // - 2026-03-14 22:05: 原因=参数不可用时不得提供用法; 目的=符合“不可用不提供”要求
+// - 2026-03-14 23:05: 原因=新增参数别名与用途; 目的=输出业务化解释
 function buildFormulaUsage(functionName, params) {
   if (!params) {
     return {
       syntax: "—",
       example: "—",
+      paramNotes: "—",
+      purpose: "不可用 / Unavailable",
       note: "参数元数据不可用，待清理 / Parameter metadata unavailable, pending cleanup",
     };
   }
 
-  const required = params.filter((param) => !param?.optionalArg);
-  const syntaxParts = params.map((param, index) => {
-    const label = normalizeArgumentType(param?.argumentType);
-    const base = `${label}${index + 1}`;
-    return param?.optionalArg ? `[${base}]` : base;
+  const upperName = String(functionName).toUpperCase();
+  const aliasOverride = functionAliases?.[upperName];
+  const aliasList = params.map((param, index) => {
+    const typeKey = normalizeArgumentType(param?.argumentType);
+    const baseAlias = aliasOverride?.[index] || null;
+    if (baseAlias) {
+      return {
+        en: baseAlias.en,
+        cn: baseAlias.cn,
+        optional: Boolean(param?.optionalArg),
+        typeKey,
+      };
+    }
+    const typeAlias = getTypeAlias(typeKey);
+    const suffix = params.length > 1 ? String(index + 1) : "";
+    return {
+      en: `${typeAlias.en}${suffix}`,
+      cn: `${typeAlias.cn}${suffix}`,
+      optional: Boolean(param?.optionalArg),
+      typeKey,
+    };
   });
-  const exampleParts = required.map((param) => {
-    const label = normalizeArgumentType(param?.argumentType);
-    return ARG_TYPE_EXAMPLES[label] ?? ARG_TYPE_EXAMPLES.value;
+
+  const required = aliasList.filter((item) => !item.optional);
+  const syntaxParts = aliasList.map((item) => {
+    const label = item.en || "value";
+    return item.optional ? `[${label}]` : label;
   });
+  const exampleParts = required.map((item) => {
+    const key = item.typeKey || "value";
+    return ARG_TYPE_EXAMPLES[key] ?? ARG_TYPE_EXAMPLES.value;
+  });
+
+  let paramNotes = "无参数 / No parameters";
+  if (aliasList.length > 0) {
+    paramNotes = aliasList
+      .map((item) => {
+        const suffix = item.optional ? " (optional/可选)" : "";
+        return `${item.en}/${item.cn}${suffix}`;
+      })
+      .join(", ");
+  }
+
+  const purposeOverride = functionPurposeOverrides?.[upperName];
+  let purpose = purposeOverride
+    ? `${purposeOverride.cn} / ${purposeOverride.en}`
+    : "通用计算 / General calculation";
+  if (!purposeOverride && Array.isArray(purposeRules)) {
+    const matched = purposeRules.find((rule) => rule.pattern?.test(upperName));
+    if (matched) {
+      purpose = `${matched.cn} / ${matched.en}`;
+    }
+  }
 
   return {
     syntax: `${functionName}(${syntaxParts.join(", ")})`,
     example: `=${functionName}(${exampleParts.join(", ")})`,
+    paramNotes,
+    purpose,
     note: "—",
   };
 }
@@ -146,13 +215,14 @@ function buildFormulaUsage(functionName, params) {
 // ### 变更记录
 // - 2026-03-14 22:05: 原因=README 表格需要双语表头; 目的=满足国际化阅读
 // - 2026-03-14 22:05: 原因=输出需稳定可 diff; 目的=固定表头与分隔行
+// - 2026-03-14 23:05: 原因=新增参数说明与用途列; 目的=补足业务化信息
 function buildFormulaDocsTable(functionNames) {
-  const header = "| 函数名 / Function | 语法 / Syntax | 示例 / Example | 备注 / Notes |";
-  const divider = "| --- | --- | --- | --- |";
+  const header = "| 函数名 / Function | 语法 / Syntax | 示例 / Example | 参数说明 / Parameter Notes | 用途 / Purpose | 备注 / Notes |";
+  const divider = "| --- | --- | --- | --- | --- | --- |";
   const rows = functionNames.map((name) => {
     const params = getFunctionParameters(name);
     const usage = buildFormulaUsage(name, params);
-    return `| ${escapeTableCell(name)} | ${escapeTableCell(usage.syntax)} | ${escapeTableCell(usage.example)} | ${escapeTableCell(usage.note)} |`;
+    return `| ${escapeTableCell(name)} | ${escapeTableCell(usage.syntax)} | ${escapeTableCell(usage.example)} | ${escapeTableCell(usage.paramNotes)} | ${escapeTableCell(usage.purpose)} | ${escapeTableCell(usage.note)} |`;
   });
   return [header, divider, ...rows].join("\n");
 }
@@ -160,12 +230,13 @@ function buildFormulaDocsTable(functionNames) {
 // ### 变更记录
 // - 2026-03-14 22:05: 原因=README 注入需要完整区块; 目的=集中输出标记块内容
 // - 2026-03-14 22:05: 原因=函数列表为空时需提示; 目的=避免 README 空白
+// - 2026-03-14 23:05: 原因=表头新增列; 目的=保持空表结构一致
 function buildFormulaDocsSection() {
   const functionNames = getRegisteredFunctions();
   const table =
     functionNames.length > 0
       ? buildFormulaDocsTable(functionNames)
-      : "| 函数名 / Function | 语法 / Syntax | 示例 / Example | 备注 / Notes |\n| --- | --- | --- | --- |\n| 无 / None | — | — | 未读取到函数列表 / Function list empty |";
+      : "| 函数名 / Function | 语法 / Syntax | 示例 / Example | 参数说明 / Parameter Notes | 用途 / Purpose | 备注 / Notes |\n| --- | --- | --- | --- | --- | --- |\n| 无 / None | — | — | — | — | 未读取到函数列表 / Function list empty |";
   return `${FORMULA_DOCS_START}\n${table}\n${FORMULA_DOCS_END}\n`;
 }
 
