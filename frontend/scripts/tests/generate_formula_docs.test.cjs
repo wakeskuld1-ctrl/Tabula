@@ -2,14 +2,19 @@
 // - 2026-03-14 22:10: 原因=扩展公式文档生成测试; 目的=校验函数列表与表格结构
 // - 2026-03-14 22:10: 原因=保持TDD覆盖; 目的=确保README生成具备最小可靠性
 // - 2026-03-14 22:10: 原因=统一测试风格; 目的=继续使用node:test
+// - 2026-03-14 22:22: 原因=新增注入逻辑; 目的=覆盖README替换行为
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
 // ### 变更记录
 // - 2026-03-14 22:10: 原因=测试需要访问生成器输出; 目的=集中导入被测函数
+// - 2026-03-14 22:22: 原因=注入测试需要标记常量; 目的=验证替换区间
 const {
   buildFormulaDocsSection,
   getRegisteredFunctions,
+  buildInjectedContent,
+  FORMULA_DOCS_START,
+  FORMULA_DOCS_END,
 } = require("../generate_formula_docs.cjs");
 
 // ### 变更记录
@@ -49,4 +54,20 @@ test("section should include rows", () => {
   const section = buildFormulaDocsSection();
   const lineCount = section.split("\n").length;
   assert.ok(lineCount > fnList.length, "section should include rows");
+});
+
+// ### 变更记录
+// - 2026-03-14 22:22: 原因=README 注入需要替换标记块; 目的=验证注入函数行为
+// - 2026-03-14 22:22: 原因=避免误替换; 目的=确保旧内容被移除
+
+test("inject should replace markers", () => {
+  // ### 变更记录
+  // - 2026-03-14 22:22: 原因=构造最小样例; 目的=确认注入区间生效
+  const sample = `${FORMULA_DOCS_START}\nOLD\n${FORMULA_DOCS_END}`;
+  const injected = buildInjectedContent(sample);
+  assert.ok(!injected.includes("OLD"), "old content should be removed");
+  assert.ok(
+    injected.includes("| 函数名 / Function | 语法 / Syntax | 示例 / Example | 备注 / Notes |"),
+    "injected content should include table header"
+  );
 });

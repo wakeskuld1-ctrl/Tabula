@@ -2,6 +2,9 @@
 // - 2026-03-14 22:05: 原因=需要读取 HyperFormula 全量函数; 目的=生成 README 全量公式表格
 // - 2026-03-14 22:05: 原因=保留生成器可扩展性; 目的=将语法/示例生成逻辑拆分为函数
 // - 2026-03-14 22:05: 原因=满足双语输出要求; 目的=表头与备注同时提供中英文
+// - 2026-03-14 22:20: 原因=需要读写 README 文件; 目的=为注入逻辑准备 fs/path
+const fs = require("node:fs");
+const path = require("node:path");
 const { HyperFormula, FunctionArgumentType } = require("hyperformula");
 
 // ### 变更记录
@@ -167,6 +170,52 @@ function buildFormulaDocsSection() {
 }
 
 // ### 变更记录
+// - 2026-03-14 22:20: 原因=注入逻辑需要纯函数便于测试; 目的=避免直接写文件导致测试副作用
+// - 2026-03-14 22:20: 原因=标记块替换需安全; 目的=缺失标记时直接抛错
+function buildInjectedContent(rawContent) {
+  const startIndex = rawContent.indexOf(FORMULA_DOCS_START);
+  const endIndex = rawContent.indexOf(FORMULA_DOCS_END);
+  if (startIndex < 0 || endIndex < 0 || endIndex < startIndex) {
+    throw new Error("Formula docs markers not found");
+  }
+  const before = rawContent.slice(0, startIndex);
+  const after = rawContent.slice(endIndex + FORMULA_DOCS_END.length);
+  const section = buildFormulaDocsSection();
+  return `${before}${section}${after}`;
+}
+
+// ### 变更记录
+// - 2026-03-14 22:20: 原因=脚本需要写入 README; 目的=集中处理文件读写
+// - 2026-03-14 22:20: 原因=保持编码一致; 目的=统一使用 UTF-8
+function writeFormulaDocsToFile(filePath) {
+  const raw = fs.readFileSync(filePath, "utf8");
+  const next = buildInjectedContent(raw);
+  fs.writeFileSync(filePath, next, "utf8");
+}
+
+// ### 变更记录
+// - 2026-03-14 22:20: 原因=两份 README 需要同步; 目的=提供默认路径列表
+// - 2026-03-14 22:20: 原因=脚本应可独立运行; 目的=自动定位根与前端 README
+function getDefaultReadmePaths() {
+  const frontendReadme = path.resolve(__dirname, "..", "README.md");
+  const rootReadme = path.resolve(__dirname, "..", "..", "README.md");
+  return [rootReadme, frontendReadme];
+}
+
+// ### 变更记录
+// - 2026-03-14 22:20: 原因=便于命令行执行; 目的=支持传入路径或使用默认路径
+// - 2026-03-14 22:20: 原因=避免静默失败; 目的=明确输出处理结果
+function runCli() {
+  const args = process.argv.slice(2);
+  const targets = args.length > 0 ? args : getDefaultReadmePaths();
+  targets.forEach((filePath) => {
+    writeFormulaDocsToFile(filePath);
+    // eslint-disable-next-line no-console
+    console.log(`[formula-docs] updated ${filePath}`);
+  });
+}
+
+// ### 变更记录
 // - 2026-03-14 22:05: 原因=测试与脚本复用; 目的=统一导出入口
 module.exports = {
   buildFormulaDocsSection,
@@ -174,4 +223,14 @@ module.exports = {
   buildFormulaDocsTable,
   FORMULA_DOCS_START,
   FORMULA_DOCS_END,
+  buildInjectedContent,
+  writeFormulaDocsToFile,
+  getDefaultReadmePaths,
+  runCli,
 };
+
+// ### 变更记录
+// - 2026-03-14 22:20: 原因=支持直接运行脚本; 目的=简化 README 更新流程
+if (require.main === module) {
+  runCli();
+}
