@@ -44,7 +44,9 @@ import {
 // **[2026-03-15]** 变更原因：公式需保留原始输入
 // **[2026-03-15]** 变更目的：显示计算值但不覆盖依赖源
 import { resolveFormulaStorage } from "../utils/formulaPersistence";
-import { inferFillValues, shiftFormulaReferencesWithParser } from "../utils/formulaFill.js";
+// **[2026-03-15]** 变更原因：填充需支持结构化引用位移。
+// **[2026-03-15]** 变更目的：先映射结构化列名，再处理 A1 引用。
+import { inferFillValues, shiftFormulaReferencesWithParser, shiftStructuredReferences } from "../utils/formulaFill.js";
 // **[2026-03-15]** 变更原因：双击填充需要统一范围与列选择逻辑
 // **[2026-03-15]** 变更目的：复用可测试的纯函数实现
 import { getAutoFillDestination, chooseAdjacentColumnIndex, isFillHandleHit, buildPrefetchPlan } from "../utils/fillHandle";
@@ -2444,6 +2446,11 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
 
       const filledValues: string[][] = Array.from({ length: targetHeight }, () => Array.from({ length: targetWidth }, () => ""));
       const hasFormula = sourceValues.some((row) => row.some((val) => String(val ?? "").trim().startsWith("=")));
+      // ### 变更记录
+      // - 2026-03-15: 原因=结构化引用需按列名映射; 目的=与表头顺序一致
+      const structuredColumnNames = hasFormula
+        ? columns.map((col) => String(col.title ?? col.id ?? ""))
+        : [];
       if (sourceWidth === 1 && targetWidth === 1 && !hasFormula && targetHeight > sourceHeight) {
         const columnValues = sourceValues.map((row) => row[0] ?? "");
         const inferred = inferFillValues(columnValues, targetHeight);
@@ -2464,8 +2471,11 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
             const baseValue = sourceValues[baseRow]?.[baseCol] ?? "";
             if (String(baseValue).trim().startsWith("=")) {
               // ### 变更记录
+              // - 2026-03-15: 原因=结构化引用需先行映射; 目的=避免 A1 替换错位
+              const structuredShifted = shiftStructuredReferences(baseValue, c - baseCol, structuredColumnNames);
+              // ### 变更记录
               // - 2026-03-15: 原因=整列/整行公式需位移; 目的=解析器路径统一处理
-              filledValues[r][c] = shiftFormulaReferencesWithParser(baseValue, c - baseCol, r - baseRow);
+              filledValues[r][c] = shiftFormulaReferencesWithParser(structuredShifted, c - baseCol, r - baseRow);
             } else {
               filledValues[r][c] = baseValue;
             }

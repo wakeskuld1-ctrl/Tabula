@@ -154,6 +154,60 @@ function shiftCellReference(match, colAbs, colName, rowAbs, rowStr, colShift, ro
   return `${colAbs}${nextColName}${rowAbs}${nextRowNum}`;
 }
 
+// **[2026-03-15]** 变更原因：结构化引用随列填充需同步映射。
+// **[2026-03-15]** 变更目的：支持 Table[Col] / [@Col] 的列名平移。
+export function shiftStructuredReferences(formula, dx, columns) {
+  // **[2026-03-15]** 变更原因：仅处理字符串公式输入。
+  // **[2026-03-15]** 变更目的：避免非字符串导致异常。
+  if (typeof formula !== "string") return formula;
+  // **[2026-03-15]** 变更原因：结构化引用只随列方向平移。
+  // **[2026-03-15]** 变更目的：避免误用行偏移。
+  const colShift = Number.isFinite(dx) ? dx : 0;
+  if (colShift === 0) return formula;
+  // **[2026-03-15]** 变更原因：列清单可能为空或非数组。
+  // **[2026-03-15]** 变更目的：保持无副作用回退。
+  const columnList = Array.isArray(columns) ? columns.map((name) => String(name ?? "")) : [];
+  if (columnList.length === 0) return formula;
+  // **[2026-03-15]** 变更原因：字符串常量不应被结构化引用替换。
+  // **[2026-03-15]** 变更目的：保留公式中的文本常量。
+  const segments = splitFormulaSegments(formula);
+  const shifted = segments.map((segment) => {
+    if (segment.inString) return segment.text;
+    return shiftStructuredSegment(segment.text, colShift, columnList);
+  });
+  return shifted.join("");
+}
+
+// **[2026-03-15]** 变更原因：结构化引用替换需独立处理。
+// **[2026-03-15]** 变更目的：集中处理 Table[Col] / [@Col] 映射逻辑。
+function shiftStructuredSegment(segment, colShift, columnList) {
+  return segment.replace(/(\b[A-Za-z_][A-Za-z0-9_]*)?\[([^\]]+)\]/g, (match, tableName, rawContent) => {
+    // **[2026-03-15]** 变更原因：避免处理复杂结构化语法。
+    // **[2026-03-15]** 变更目的：只处理简单列名引用。
+    if (rawContent.includes("[") || rawContent.includes(",") || rawContent.includes(":")) return match;
+    const trimmed = String(rawContent ?? "").trim();
+    if (!trimmed) return match;
+    // **[2026-03-15]** 变更原因：保留结构化关键字（如 #All）。
+    // **[2026-03-15]** 变更目的：避免误替换非列名标记。
+    if (trimmed.startsWith("#")) return match;
+    const hasCurrentRowPrefix = trimmed.startsWith("@");
+    const columnName = hasCurrentRowPrefix ? trimmed.slice(1).trim() : trimmed;
+    if (!columnName) return match;
+    const currentIndex = columnList.indexOf(columnName);
+    if (currentIndex < 0) return match;
+    const nextIndex = currentIndex + colShift;
+    if (nextIndex < 0 || nextIndex >= columnList.length) return match;
+    const nextName = columnList[nextIndex];
+    const replacement = `${hasCurrentRowPrefix ? "@" : ""}${nextName}`;
+    // **[2026-03-15]** 变更原因：保持原有表名前缀。
+    // **[2026-03-15]** 变更目的：确保引用仍然归属于原表。
+    if (tableName) {
+      return `${tableName}[${replacement}]`;
+    }
+    return `[${replacement}]`;
+  });
+}
+
 export function inferFillValues(sourceValues, targetLength) {
   const values = Array.isArray(sourceValues) ? sourceValues.map((val) => String(val ?? "")) : [];
   const desiredLength = Number.isFinite(targetLength) ? Math.max(0, Math.floor(targetLength)) : values.length;
