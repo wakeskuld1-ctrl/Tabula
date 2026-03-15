@@ -1,4 +1,7 @@
 import React, { useEffect, useState } from 'react';
+// ### Change Log
+// - 2026-03-15: Reason=API route alignment; Purpose=use shared GridAPI helper
+import { fetchVersions } from '../utils/GridAPI';
 
 interface Version {
     version: number;
@@ -12,18 +15,6 @@ interface TimeMachineDrawerProps {
     onCheckout: (version: number) => void;
 }
 
-const parseJsonSafely = async (res: Response): Promise<{ ok: true; data: any } | { ok: false; reason: string; rawPreview: string }> => {
-    const raw = await res.text();
-    if (!raw || raw.trim().length === 0) {
-        return { ok: false, reason: `empty response (status ${res.status})`, rawPreview: "" };
-    }
-    try {
-        return { ok: true, data: JSON.parse(raw) };
-    } catch {
-        return { ok: false, reason: `invalid json (status ${res.status})`, rawPreview: raw.slice(0, 200) };
-    }
-};
-
 export const TimeMachineDrawer: React.FC<TimeMachineDrawerProps> = ({ tableName, onClose, onCheckout }) => {
     const [versions, setVersions] = useState<Version[]>([]);
     const [loading, setLoading] = useState(false);
@@ -34,18 +25,9 @@ export const TimeMachineDrawer: React.FC<TimeMachineDrawerProps> = ({ tableName,
         const loadVersions = async () => {
             setLoading(true);
             try {
-                const res = await fetch(`/api/versions?table_name=${encodeURIComponent(tableName)}`);
-                const parsed = await parseJsonSafely(res);
-                if (!res.ok) {
-                    const preview = parsed.ok ? JSON.stringify(parsed.data).slice(0, 200) : parsed.rawPreview;
-                    console.error(`Failed to fetch versions: HTTP ${res.status}`, preview);
-                    return;
-                }
-                if (!parsed.ok) {
-                    console.error(`Failed to fetch versions: ${parsed.reason}`);
-                    return;
-                }
-                const data = parsed.data;
+                // ### Change Log
+                // - 2026-03-15: Reason=Route alignment; Purpose=delegate versions fetch to GridAPI
+                const data = await fetchVersions(tableName);
                 if (data.status === 'ok') {
                     if (!cancelled) {
                         setVersions((data.versions || []).slice().reverse()); // Show newest first
@@ -54,7 +36,9 @@ export const TimeMachineDrawer: React.FC<TimeMachineDrawerProps> = ({ tableName,
                     console.error("Failed to fetch versions:", data.message || data.error || "unknown error");
                 }
             } catch (err) {
-                console.error(err);
+                // ### Change Log
+                // - 2026-03-15: Reason=Keep error visibility; Purpose=preserve debugging info
+                console.error("Failed to fetch versions:", err);
             } finally {
                 if (!cancelled) setLoading(false);
             }

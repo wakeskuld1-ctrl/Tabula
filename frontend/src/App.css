@@ -37,12 +37,28 @@
   padding: 0 14px;
   background: linear-gradient(180deg, #0d1b2f, #0a1527);
   border-bottom: 1px solid rgba(64, 94, 138, 0.42);
+  /* ### Change Log
+   * - 2026-03-15: Reason=Header must stay single-row; Purpose=avoid wrapping into second line
+   */
+  flex-wrap: nowrap;
+  overflow: hidden;
 }
 
 .brand-block {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+}
+
+/* ### Change Log
+ * - 2026-03-15: Reason=Left cluster contains brand + selector + pivot; Purpose=keep one-row alignment
+ */
+.status-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .brand-title {
@@ -72,6 +88,11 @@
   padding: 0 14px;
   background: #0c172a;
   border-bottom: 1px solid rgba(64, 94, 138, 0.35);
+  /* ### Change Log
+   * - 2026-03-15: Reason=Keep selector + pivot on one row; Purpose=avoid wrapping to next line
+   */
+  flex-wrap: nowrap;
+  overflow: hidden;
 }
 
 .status-select {
@@ -89,6 +110,17 @@
 .status-select:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* ### Change Log
+ * - 2026-03-15: Reason=Group table selector and pivot; Purpose=keep them adjacent on one row
+ */
+.status-bar-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  min-width: 0;
 }
 
 .pivot-trigger-btn {
@@ -117,6 +149,10 @@
 .status-loading {
   color: #7bc5ff;
   font-size: 12px;
+  /* ### Change Log
+   * - 2026-03-15: Reason=Avoid pushing left controls; Purpose=limit loading label width
+   */
+  flex: 0 0 auto;
 }
 
 .status-right {
@@ -125,6 +161,11 @@
   display: inline-flex;
   gap: 8px;
   align-items: center;
+  /* ### Change Log
+   * - 2026-03-15: Reason=Right side must shrink gracefully; Purpose=allow debug to ellipsize
+   */
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .status-debug {
@@ -133,6 +174,11 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  /* ### Change Log
+   * - 2026-03-15: Reason=Keep status bar in one line; Purpose=allow debug text to shrink
+   */
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .status-label {
@@ -413,13 +459,27 @@
   opacity: 1;
 }
 
+/* ### Change Log
+ * - 2026-03-15: Reason=常驻 tips 需要纵向布局; Purpose=公式栏与提示区分行展示
+ * - 2026-03-15: Reason=保持视觉一致; Purpose=复用既有面板底色
+ */
 .formula-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px 10px;
+  background: var(--panel-solid);
+  border-bottom: 1px solid var(--border);
+}
+
+/* ### Change Log
+ * - 2026-03-15: Reason=原有输入行需要保留横向布局; Purpose=保持交互一致
+ */
+.formula-bar-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 10px;
-  background: var(--panel-solid);
-  border-bottom: 1px solid var(--border);
+  width: 100%;
 }
 
 .formula-cell {
@@ -472,6 +532,105 @@
   color: var(--text);
   padding: 0 10px;
   outline: none;
+}
+
+/* ### Change Log
+ * - 2026-03-15: Reason=常驻 tips 需要可滚动容器; Purpose=避免遮挡表格
+ * - 2026-03-15: Reason=信息密度较高; Purpose=通过卡片化增强可读性
+ */
+.formula-tips {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 8px;
+  /* ### Change Log
+   * - 2026-03-15: Reason=Popup should feel lighter; Purpose=reduce visual weight
+   */
+  box-shadow: inset 0 1px 0 rgba(134, 168, 227, 0.08);
+}
+
+.formula-tips-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.formula-tips-sub {
+  opacity: 0.75;
+}
+
+.formula-tips-list {
+  /* ### Change Log
+   * - 2026-03-15: Reason=Popup should be compact; Purpose=reduce height and keep scroll
+   */
+  max-height: 140px;
+  overflow: auto;
+  display: grid;
+  gap: 6px;
+}
+
+.formula-tips-empty {
+  font-size: 11px;
+  color: var(--muted);
+  padding: 6px 4px;
+}
+
+.formula-tip-item {
+  border: 1px solid rgba(92, 135, 197, 0.35);
+  background: var(--panel-strong);
+  border-radius: 6px;
+  padding: 6px 8px;
+  display: grid;
+  gap: 4px;
+  font-size: 11px;
+  color: #d6e4ff;
+  /* ### Change Log
+   * - 2026-03-15: Reason=Collapsed by default; Purpose=make row clickable
+   */
+  cursor: pointer;
+}
+
+/* ### Change Log
+ * - 2026-03-15: Reason=Collapsed row should be single line; Purpose=show summary only
+ */
+.formula-tip-item.is-collapsed .formula-tip-details {
+  display: none;
+}
+
+/* ### Change Log
+ * - 2026-03-15: Reason=Collapsed row needs compact summary; Purpose=single line with ellipsis
+ */
+.formula-tip-summary {
+  font-weight: 600;
+  color: #e7f0ff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ### Change Log
+ * - 2026-03-15: Reason=Expanded row should separate sections; Purpose=reduce visual noise
+ */
+.formula-tip-details {
+  display: grid;
+  gap: 4px;
+}
+
+.formula-tip-name {
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.formula-tip-syntax,
+.formula-tip-example,
+.formula-tip-purpose,
+.formula-tip-notes,
+.formula-tip-note {
+  color: #b9c9e6;
 }
 
 .fx-popup,

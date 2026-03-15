@@ -10,6 +10,19 @@ export interface GridDataResponse {
     formula_columns: any[];
 }
 
+// ### Change Log
+// - 2026-03-15: Reason=Align API error shape; Purpose=attach status/body for callers
+const buildHttpError = (label: string, status: number, body: string) => {
+    const error = new Error(`${label} failed: ${status} ${body}`);
+    // ### Change Log
+    // - 2026-03-15: Reason=Callers need status; Purpose=preserve http code for UI messaging
+    (error as Error & { status?: number }).status = status;
+    // ### Change Log
+    // - 2026-03-15: Reason=Keep server payload; Purpose=surface backend error details
+    (error as Error & { body?: string }).body = body;
+    return error;
+};
+
 async function executeSql(sql: string): Promise<any> {
     const res = await fetch('/api/execute', {
         method: 'POST',
@@ -80,6 +93,47 @@ export async function batchUpdateCells(payload: any) {
     if (!res.ok) {
         const text = await res.text();
         throw new Error(`Batch update failed: ${res.status} ${text}`);
+    }
+    return await res.json();
+}
+
+// ### Change Log
+// - 2026-03-15: Reason=Time machine needs unified routing; Purpose=align versions fetch with GridAPI
+export async function fetchVersions(tableName: string) {
+    const res = await fetch(`/api/versions?table_name=${encodeURIComponent(tableName)}`);
+    if (!res.ok) {
+        const text = await res.text();
+        throw buildHttpError("Fetch versions", res.status, text);
+    }
+    return await res.json();
+}
+
+// ### Change Log
+// - 2026-03-15: Reason=Style range route alignment; Purpose=centralize update_style_range calls
+export async function updateStyleRange(payload: any) {
+    const res = await fetch('/api/update_style_range', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+    if (!res.ok) {
+        const text = await res.text();
+        throw buildHttpError("Update style range", res.status, text);
+    }
+    return await res.json();
+}
+
+// ### Change Log
+// - 2026-03-15: Reason=Pivot writes can exceed schema; Purpose=centralize ensure_columns route
+export async function ensureColumns(payload: any) {
+    const res = await fetch('/api/ensure_columns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+    if (!res.ok) {
+        const text = await res.text();
+        throw buildHttpError("Ensure columns", res.status, text);
     }
     return await res.json();
 }

@@ -7,6 +7,21 @@ import { Toolbar } from './components/layout/Toolbar';
 import { FormulaBar } from './components/layout/FormulaBar';
 import { TimeMachineDrawer } from './components/TimeMachineDrawer';
 import { SheetBar } from './components/layout/SheetBar';
+// ### Change Log
+// - 2026-03-15: Reason=Single-row header needs shared helpers; Purpose=centralize brand + grouping rules
+import { getBrandTitle, getHeaderGroups } from './utils/headerLayout';
+// ### Change Log
+// - 2026-03-15: Reason=Auto-hide loader completion notice; Purpose=keep debug overlay tidy
+import { shouldAutoHideDebugInfo } from './utils/debugOverlay';
+// ### Change Log
+// - 2026-03-15: Reason=Persist pivot output to new session; Purpose=build update payloads
+import { buildPivotUpdates, chunkPivotUpdates, buildPivotColumnAdds, buildPivotUpdatesWithOffset, formatPivotPersistError } from './utils/pivotSession';
+// ### Change Log
+// - 2026-03-15: Reason=Align pivot routes; Purpose=use GridAPI for ensure_columns
+import { ensureColumns } from './utils/GridAPI';
+// ### Change Log
+// - 2026-03-15: Reason=Hide invalid system tables; Purpose=avoid sys_metadata selection errors
+import { filterUserVisibleTables } from './utils/tableList';
 
 const toExcelColumnLabel = (index: number): string => {
   let result = '';
@@ -83,6 +98,9 @@ const App: React.FC = () => {
   // ### 变更记录
   // - 2026-03-14: Reason=Session fetch can race; Purpose=ignore stale responses.
   const sessionFetchToken = useRef(0);
+  // ### Change Log
+  // - 2026-03-15: Reason=Loader completion should auto-hide; Purpose=store timer handle safely
+  const debugAutoHideTimer = useRef<number | undefined>(undefined);
   const [isReadOnly, setIsReadOnly] = useState<boolean>(false);
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const [canUndo, setCanUndo] = useState<boolean>(false);
@@ -101,6 +119,34 @@ const App: React.FC = () => {
   const [pivotFields, setPivotFields] = useState<Field[]>([]);
   const [showTimeMachine, setShowTimeMachine] = useState<boolean>(false);
   const [formulaText, setFormulaText] = useState<string>('');
+
+  // ### Change Log
+  // - 2026-03-15: Reason=Auto-hide loaded debug message; Purpose=remove overlay after 10s
+  // - 2026-03-15: Reason=Only affect completion messages; Purpose=keep errors visible
+  useEffect(() => {
+    // ### Change Log
+    // - 2026-03-15: Reason=Reset previous timer; Purpose=avoid multiple pending clears
+    if (debugAutoHideTimer.current !== undefined) {
+      window.clearTimeout(debugAutoHideTimer.current);
+      debugAutoHideTimer.current = undefined;
+    }
+    // ### Change Log
+    // - 2026-03-15: Reason=Only hide completion messages; Purpose=avoid clearing alerts
+    if (shouldAutoHideDebugInfo(debugInfo, loading)) {
+      debugAutoHideTimer.current = window.setTimeout(() => {
+        setDebugInfo('');
+        // ### Change Log
+        // - 2026-03-15: Reason=Timer should not linger; Purpose=avoid stale handles
+        debugAutoHideTimer.current = undefined;
+      }, 10000);
+    }
+    return () => {
+      if (debugAutoHideTimer.current !== undefined) {
+        window.clearTimeout(debugAutoHideTimer.current);
+        debugAutoHideTimer.current = undefined;
+      }
+    };
+  }, [debugInfo, loading]);
   
   const checkBackend = async () => {
     try {
@@ -144,13 +190,16 @@ const App: React.FC = () => {
         const nextTables = (data.tables || [])
           .map((item: any) => typeof item === 'string' ? item : item.table_name)
           .filter(Boolean);
-        setTables(nextTables);
+        // ### Change Log
+        // - 2026-03-15: Reason=System table not present in backend; Purpose=filter sys_metadata from UI
+        const visibleTables = filterUserVisibleTables(nextTables);
+        setTables(visibleTables);
         // ### 鍙樻洿璁板綍
         // - 2026-03-14: 鍘熷洜=琛ㄥ垏鎹㈤渶瑕佸悓姝?sessions锛涚洰鐨?缁熶竴閫氳繃 selectTable 鍏ュ彛銆?
-        if (!currentTable && nextTables.length > 0) {
-          selectTable(nextTables[0]);
+        if (!currentTable && visibleTables.length > 0) {
+          selectTable(visibleTables[0]);
         }
-        return nextTables;
+        return visibleTables;
       }
       return [];
     } catch (e) {
@@ -475,6 +524,13 @@ const App: React.FC = () => {
   };
 
   const handlePivotApply = async (outputMode: 'new-sheet' | 'current-sheet') => {
+    // ### Change Log
+    // - 2026-03-15: Reason=Friendly errors needed; Purpose=centralize pivot failure messages
+    const failWithPivotError = (input: { step: "create_session" | "ensure_columns" | "batch_update" | "current_sheet"; status?: number; message?: string; }) => {
+      const message = formatPivotPersistError(input);
+      setDebugInfo(message);
+      throw new Error(message);
+    };
     try {
       setLoading(true);
       const engine = PivotEngine.getInstance();
@@ -489,24 +545,155 @@ const App: React.FC = () => {
       console.log("Pivot Result:", result);
       
       if (outputMode === 'new-sheet') {
-        // For now, replace current view
-        setGridColumns(result.headers);
-        setGridRows(result.data);
         // ### Change Log
-        // - 2026-03-14: Reason=Replace non-ASCII prompt; Purpose=keep session selection readable.
-        setDebugInfo('Please select a table before switching sessions');
-        setShowPivot(false); // Close sidebar after apply
-      } else {
-        // Current sheet logic - maybe append?
-        // For now just alert
-        alert("Current sheet output not implemented yet, replacing view instead.");
-        setGridColumns(result.headers);
-        setGridRows(result.data);
+        // - 2026-03-15: Reason=Pivot should persist to new session; Purpose=write results to backend
+        const nextSessionId = await handleAddSheet();
+        if (!nextSessionId) {
+          failWithPivotError({ step: "create_session", message: "新建 Sheet 失败" });
+        }
+        // ### Change Log
+        // - 2026-03-15: Reason=Use base table columns for updates; Purpose=align with batch_update_cells schema
+        const columnNames = gridColumns.length > 0 ? gridColumns : result.headers.map((_, index) => `col_${index}`);
+        // ### Change Log
+        // - 2026-03-15: Reason=Pivot headers may exceed base columns; Purpose=auto expand schema before writes
+        const columnAdds = buildPivotColumnAdds({
+          headers: result.headers,
+          columnNames,
+          colOffset: 0,
+          prefix: "pivot_col_"
+        });
+        if (columnAdds.length > 0) {
+          // ### Change Log
+          // - 2026-03-15: Reason=Route alignment; Purpose=delegate ensure_columns to GridAPI
+          try {
+            await ensureColumns({
+              table_name: currentTable,
+              session_id: nextSessionId,
+              columns: columnAdds
+            });
+          } catch (error) {
+            const status = (error as Error & { status?: number }).status;
+            const body = (error as Error & { body?: string }).body;
+            failWithPivotError({ step: "ensure_columns", status, message: body || (error as Error).message });
+          }
+          columnAdds.forEach((col) => columnNames.push(col.name));
+        }
+        const updates = buildPivotUpdates({
+          headers: result.headers,
+          data: result.data,
+          columnNames
+        });
+        // ### Change Log
+        // - 2026-03-15: Reason=Large payloads must be chunked; Purpose=avoid oversized requests
+        const batches = chunkPivotUpdates(updates, 500);
+        let batchIndex = 0;
+        for (const batch of batches) {
+          batchIndex += 1;
+          // ### Change Log
+          // - 2026-03-15: Reason=Persist can be slow; Purpose=show progress to user
+          setDebugInfo(`Pivot 落库中... (${batchIndex}/${batches.length})`);
+          const batchRes = await fetch('/api/batch_update_cells', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              table_name: currentTable,
+              session_id: nextSessionId,
+              updates: batch
+            })
+          });
+          if (!batchRes.ok) {
+            const text = await batchRes.text();
+            failWithPivotError({ step: "batch_update", status: batchRes.status, message: text });
+          }
+        }
+        // ### Change Log
+        // - 2026-03-15: Reason=tsc rejects null; Purpose=pass undefined when session id missing
+        await fetchSessionsForTable(currentTable, nextSessionId || undefined);
+        // ### Change Log
+        // - 2026-03-15: Reason=Close pivot after persist; Purpose=return to grid view
         setShowPivot(false);
+        // ### Change Log
+        // - 2026-03-15: Reason=Keep user informed; Purpose=show pivot persistence result
+        setDebugInfo(`Pivot saved to new sheet`);
+      } else {
+        // ### Change Log
+        // - 2026-03-15: Reason=current-sheet needs persistence; Purpose=write pivot to current session
+        if (isReadOnly) {
+          setDebugInfo(formatPivotPersistError({
+            step: "current_sheet",
+            message: "当前会话只读，无法写入 Pivot 结果"
+          }));
+          return;
+        }
+        const hasSelection = Boolean(selectedPosition);
+        const rowOffset = hasSelection ? selectedPosition!.row : 0;
+        const colOffset = hasSelection ? selectedPosition!.col : 0;
+        const baseColumnNames = gridColumns.length > 0
+          ? [...gridColumns]
+          : result.headers.map((_, index) => `col_${index}`);
+        const columnAdds = buildPivotColumnAdds({
+          headers: result.headers,
+          columnNames: baseColumnNames,
+          colOffset,
+          prefix: "pivot_col_"
+        });
+        if (columnAdds.length > 0) {
+          // ### Change Log
+          // - 2026-03-15: Reason=Route alignment; Purpose=delegate ensure_columns to GridAPI
+          try {
+            await ensureColumns({
+              table_name: currentTable,
+              // ### Change Log
+              // - 2026-03-15: Reason=tsc build rejects null; Purpose=align with string | undefined
+              session_id: sessionId || undefined,
+              columns: columnAdds
+            });
+          } catch (error) {
+            const status = (error as Error & { status?: number }).status;
+            const body = (error as Error & { body?: string }).body;
+            failWithPivotError({ step: "ensure_columns", status, message: body || (error as Error).message });
+          }
+          columnAdds.forEach((col) => baseColumnNames.push(col.name));
+        }
+        const updates = buildPivotUpdatesWithOffset({
+          headers: result.headers,
+          data: result.data,
+          columnNames: baseColumnNames,
+          rowOffset,
+          colOffset
+        });
+        const batches = chunkPivotUpdates(updates, 500);
+        let batchIndex = 0;
+        for (const batch of batches) {
+          batchIndex += 1;
+          setDebugInfo(`Pivot 落库中... (${batchIndex}/${batches.length})`);
+          const batchRes = await fetch('/api/batch_update_cells', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              table_name: currentTable,
+              session_id: sessionId || null,
+              updates: batch
+            })
+          });
+          if (!batchRes.ok) {
+            const text = await batchRes.text();
+            failWithPivotError({ step: "batch_update", status: batchRes.status, message: text });
+          }
+        }
+        await fetchTableData(currentTable);
+        setShowPivot(false);
+        setDebugInfo(hasSelection
+          ? "Pivot 已写入当前 Sheet"
+          : "未选择单元格，已从 A1 写入 Pivot 结果");
       }
     } catch (e: any) {
       console.error("Pivot failed", e);
-      alert(`Pivot failed: ${e.message}`);
+      if (e?.message) {
+        setDebugInfo(e.message);
+      } else {
+        setDebugInfo(formatPivotPersistError({ step: "batch_update", message: "Pivot 落库失败" }));
+      }
     } finally {
       setLoading(false);
     }
@@ -695,7 +882,9 @@ const App: React.FC = () => {
       if (!nextSessionId) {
         throw new Error(parsed.data?.message || 'invalid create_session response');
       }
-      await fetchSessionsForTable(currentTable, nextSessionId);
+      // ### Change Log
+      // - 2026-03-15: Reason=tsc rejects null; Purpose=pass undefined when session id missing
+      await fetchSessionsForTable(currentTable, nextSessionId || undefined);
       // ### Change Log
       // - 2026-03-14: Reason=Replace non-ASCII debug text; Purpose=keep create sandbox result readable.
       setDebugInfo(`Sandbox created: ${nextSandboxName}`);
@@ -784,59 +973,71 @@ const App: React.FC = () => {
 
   return (
     <div className="app-shell">
+      {/* ### Change Log
+          - 2026-03-15: Reason=Merge header + status bar; Purpose=single-row top layout
+      */}
       <div className="status-header">
-        <div className="brand-block">
-          <span className="brand-title">Trae Excel</span>
+        {/* ### Change Log
+            - 2026-03-15: Reason=Group left controls; Purpose=brand + selector + pivot in one row
+        */}
+        <div className="status-left" data-groups-left={getHeaderGroups().left.join(',')}>
+          <div className="brand-block">
+            {/* ### Change Log
+                - 2026-03-15: Reason=Rename product; Purpose=display Tabula brand
+            */}
+            <span className="brand-title">{getBrandTitle()}</span>
+            {/* ### Change Log
+                - 2026-03-14: Reason=Replace garbled UI label; Purpose=keep brand tag readable.
+            */}
+            <span className="brand-tag">Sandbox</span>
+          </div>
+
           {/* ### Change Log
-              - 2026-03-14: Reason=Replace garbled UI label; Purpose=keep brand tag readable.
+              - 2026-03-14: Reason=Replace garbled table selector labels; Purpose=avoid unterminated strings.
           */}
-          <span className="brand-tag">Sandbox</span>
+          <select
+            className="status-select"
+            value={currentTable}
+            onChange={handleTableChange}
+            aria-label="Select table"
+          >
+            <option value="">Select a table...</option>
+            {tables.map((tableName) => (
+              <option key={tableName} value={tableName}>
+                {tableName}
+              </option>
+            ))}
+          </select>
+
+          {/* ### Change Log
+              - 2026-03-14: Reason=Replace garbled pivot label; Purpose=keep aria-label readable.
+          */}
+          <button
+            type="button"
+            className="pivot-trigger-btn"
+            onClick={handlePivotToggle}
+            title="Insert Pivot Table"
+            aria-label="Insert pivot table"
+          >
+            Pivot
+          </button>
         </div>
-        <div className="status-right">
+
+        {/* ### Change Log
+            - 2026-03-15: Reason=Group right status; Purpose=keep fetching/debug on one row
+        */}
+        <div className="status-right" data-groups-right={getHeaderGroups().right.join(',')}>
           <span className="status-label">Fetching data: {tables.length || 0}, Page 1</span>
           <span className={`status-chip ${backendStatus.includes('Connected') ? 'ok' : 'error'}`}>
             {backendStatus}
           </span>
+          {/* ### Change Log
+              - 2026-03-14: Reason=Replace garbled loading text; Purpose=keep status readable.
+          */}
+          {loading && <span className="status-loading" aria-live="polite">Loading...</span>}
+
+          <span className="status-debug" aria-live="polite">{debugInfo}</span>
         </div>
-      </div>
-
-      <div className="status-bar">
-        {/* ### Change Log
-            - 2026-03-14: Reason=Replace garbled table selector labels; Purpose=avoid unterminated strings.
-        */}
-        <select
-          className="status-select"
-          value={currentTable}
-          onChange={handleTableChange}
-          aria-label="Select table"
-        >
-          <option value="">Select a table...</option>
-          {tables.map((tableName) => (
-            <option key={tableName} value={tableName}>
-              {tableName}
-            </option>
-          ))}
-        </select>
-
-        {/* ### Change Log
-            - 2026-03-14: Reason=Replace garbled pivot label; Purpose=keep aria-label readable.
-        */}
-        <button
-          type="button"
-          className="pivot-trigger-btn"
-          onClick={handlePivotToggle}
-          title="Insert Pivot Table"
-          aria-label="Insert pivot table"
-        >
-          Pivot
-        </button>
-
-        {/* ### Change Log
-            - 2026-03-14: Reason=Replace garbled loading text; Purpose=keep status readable.
-        */}
-        {loading && <span className="status-loading" aria-live="polite">Loading...</span>}
-
-        <span className="status-debug" aria-live="polite">{debugInfo}</span>
       </div>
 
       <Toolbar
