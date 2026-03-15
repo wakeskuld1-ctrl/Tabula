@@ -99,7 +99,7 @@ fn fix_expr(expr: &mut Expr, unknown_field: &str, matched_column: Option<&str>) 
                     });
                 } else {
                     // Not a column, treat as string literal
-                    *expr = Expr::Value(Value::SingleQuotedString(ident.value.clone()));
+                    *expr = Expr::Value(Value::SingleQuotedString(ident.value.clone()).into());
                 }
             }
         }
@@ -242,7 +242,9 @@ fn maybe_convert_to_string(expr: &mut Box<Expr>, valid_columns: &HashSet<String>
                 return;
             }
 
-            **expr = Expr::Value(Value::SingleQuotedString(name));
+            // Convert to SingleQuotedString
+            // Using .into() to convert Value to ValueWithSpan as required by newer sqlparser
+            **expr = Expr::Value(Value::SingleQuotedString(name).into());
         }
     }
 }

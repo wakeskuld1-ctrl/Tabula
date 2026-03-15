@@ -1,5 +1,5 @@
 use crate::cache_manager::CacheManager;
-use crate::datasources::sqlite::{FetchStrategy, SqliteExec, SqliteExecParams};
+use crate::datasources::sqlite::{FetchStrategy, SqliteExec};
 use datafusion::arrow::datatypes::{DataType, Field, Schema};
 use datafusion::execution::TaskContext;
 use datafusion::physical_plan::common::collect;
@@ -80,16 +80,17 @@ async fn test_full_capabilities_stress() {
         Field::new("created_at", DataType::Utf8, true),
     ]));
 
-    let exec = Arc::new(SqliteExec::new(SqliteExecParams {
-        db_path: db_path.to_string(),
-        table_name: "large_table".to_string(),
-        schema: schema.clone(),
-        projection: None,
-        batch_size: 1024,
-        fetch_strategy: FetchStrategy::Cursor,
-        limit: None,
-        where_clause: None,
-    }));
+    let exec = Arc::new(SqliteExec::new(
+        db_path.to_string(),
+        "large_table".to_string(),
+        schema.clone(),
+        None, // projection: All
+        1024, // batch size
+        FetchStrategy::Cursor,
+        None, // limit
+        datafusion::common::Statistics::new_unknown(&schema),
+        None, // where
+    ));
 
     let ctx = Arc::new(TaskContext::default());
 
@@ -115,16 +116,17 @@ async fn test_full_capabilities_stress() {
         };
 
         // Create a specific exec for this query to override the default "None" where
-        let specific_exec = Arc::new(SqliteExec::new(SqliteExecParams {
-            db_path: db_path.to_string(),
-            table_name: "large_table".to_string(),
-            schema: schema.clone(),
-            projection: None,
-            batch_size: 1024,
-            fetch_strategy: FetchStrategy::Cursor,
-            limit: None,
+        let specific_exec = Arc::new(SqliteExec::new(
+            db_path.to_string(),
+            "large_table".to_string(),
+            schema.clone(),
+            None,
+            1024,
+            FetchStrategy::Cursor,
+            None,
+            datafusion::common::Statistics::new_unknown(&schema),
             where_clause,
-        }));
+        ));
 
         handles.push(tokio::spawn(async move {
             crate::cache_manager::get_metrics_registry()
@@ -166,7 +168,7 @@ async fn test_full_capabilities_stress() {
     let monitor_file = "stress_test_metrics.csv";
     let _ = std::fs::remove_file(monitor_file);
     let mut monitor_cmd = std::process::Command::new("typeperf")
-        .args([
+        .args(&[
             "\\Processor(_Total)\\% Processor Time",
             "\\PhysicalDisk(_Total)\\% Disk Time",
             "\\Memory\\Available MBytes",
@@ -262,16 +264,18 @@ async fn test_full_capabilities_stress() {
             let end_id = start_id + rows_per_query;
             let where_clause = Some(format!("id > {} AND id <= {}", start_id, end_id));
 
-            let specific_exec = Arc::new(SqliteExec::new(SqliteExecParams {
-                db_path: db_path_clone,
-                table_name: "large_table".to_string(),
-                schema: schema_clone,
-                projection: None,
-                batch_size: 1024,
-                fetch_strategy: FetchStrategy::Cursor,
-                limit: Some(rows_per_query),
+            let stats_schema = schema_clone.clone();
+            let specific_exec = Arc::new(SqliteExec::new(
+                db_path_clone,
+                "large_table".to_string(),
+                schema_clone,
+                None,
+                1024,
+                FetchStrategy::Cursor,
+                Some(rows_per_query),
+                datafusion::common::Statistics::new_unknown(&stats_schema),
                 where_clause,
-            }));
+            ));
 
             let start = std::time::Instant::now();
             let stream = specific_exec.execute(0, ctx_clone).unwrap();
@@ -290,7 +294,6 @@ async fn test_full_capabilities_stress() {
 
     let results = futures::future::join_all(flood_handles).await;
     let _ = monitor_cmd.kill(); // Stop monitor
-    let _ = monitor_cmd.wait();
     logger_handle.abort(); // Stop app logger
 
     let total_rows: usize = results.into_iter().map(|r| r.unwrap_or(0)).sum();

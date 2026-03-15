@@ -3,9 +3,14 @@ use std::collections::HashMap;
 use std::fs::{self, File};
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, OnceLock, RwLock};
+// **[2026-02-26]** 变更原因：需要跨平台读取系统内存与磁盘信息。
+// **[2026-02-26]** 变更目的：替代平台相关命令，降低外部依赖。
+// **[2026-02-26]** 变更说明：依赖已在 Cargo.toml 中声明。
+// **[2026-02-26]** 变更说明：仅用于系统信息读取，不影响缓存语义。
+// **[2026-02-26]** 变更说明：与测试钩子配合可稳定断言。
+use sysinfo::{Disks, System};
 
 // Volatility Tracking
 // Tracks table update frequency to bypass cache for volatile tables.
@@ -49,6 +54,24 @@ const VOLATILITY_COOLDOWN_MS: u64 = 30_000; // 30 seconds cooldown
 const PROBATION_TTL_MS: u64 = 30_000; // 30 seconds for low-access items (< 2 hits)
 const PROTECTED_TTL_MS: u64 = 300_000; // 5 minutes for high-access items (>= 2 hits)
 const MAINTENANCE_INTERVAL_MS: u64 = 10_000; // Check every 10 seconds
+                                             // **[2026-02-26]** 变更原因：内存上限读取需要缓存以降低系统调用频率。
+                                             // **[2026-02-26]** 变更目的：避免每次写入都刷新系统信息造成抖动。
+                                             // **[2026-02-26]** 变更说明：默认刷新间隔 5 分钟，可在测试中覆盖。
+                                             // **[2026-02-26]** 变更说明：仅影响内部阈值读取，不改变外部接口。
+                                             // **[2026-02-26]** 变更说明：与 MEMORY_LIMIT_LAST_REFRESH_MS 联动使用。
+const MEMORY_LIMIT_REFRESH_MS: u64 = 300_000;
+// **[2026-02-26]** 变更原因：L1 驱逐检查需避免高频触发。
+// **[2026-02-26]** 变更目的：降低磁盘扫描开销与日志噪音。
+// **[2026-02-26]** 变更说明：默认间隔与维护周期保持一致。
+// **[2026-02-26]** 变更说明：测试可通过 TEST_L1_EVICTION_INTERVAL_MS 覆盖。
+// **[2026-02-26]** 变更说明：不改变驱逐阈值与策略。
+const L1_EVICTION_CHECK_INTERVAL_MS: u64 = 10_000;
+// **[2026-02-26]** 变更原因：L2 合并在大批次场景下成本过高。
+// **[2026-02-26]** 变更目的：使用阈值限制合并，控制内存拷贝。
+// **[2026-02-26]** 变更说明：阈值基于批次总大小判断。
+// **[2026-02-26]** 变更说明：测试可通过 TEST_L2_COMPACTION_MAX_BYTES 覆盖。
+// **[2026-02-26]** 变更说明：不改变原有缓存内容与顺序。
+const L2_COMPACTION_MAX_BYTES: usize = 256 * 1024;
 
 #[derive(Debug, PartialEq)]
 pub enum CachePolicy {
@@ -419,13 +442,45 @@ static L1_CACHE_INDEX: OnceLock<L1CacheIndex> = OnceLock::new();
 
 static GLOBAL_MEMORY_USAGE: AtomicUsize = AtomicUsize::new(0);
 static IS_EVICTING: AtomicBool = AtomicBool::new(false);
+static L1_EVICTION_LAST_CHECK_MS: AtomicU64 = AtomicU64::new(0);
+// **[2026-02-26]** 变更原因：内存上限读取需要缓存结果。
+// **[2026-02-26]** 变更目的：减少系统信息读取频率。
+// **[2026-02-26]** 变更说明：0 表示未缓存，触发首次刷新。
+// **[2026-02-26]** 变更说明：与刷新时间戳配套使用。
+// **[2026-02-26]** 变更说明：仅用于内部阈值计算。
+static MEMORY_LIMIT_CACHE: AtomicUsize = AtomicUsize::new(0);
+// **[2026-02-26]** 变更原因：需要判断内存上限缓存是否过期。
+// **[2026-02-26]** 变更目的：为刷新逻辑提供时间基准。
+// **[2026-02-26]** 变更说明：时间单位为毫秒。
+// **[2026-02-26]** 变更说明：0 表示未刷新状态。
+// **[2026-02-26]** 变更说明：仅影响内部判断。
+static MEMORY_LIMIT_LAST_REFRESH_MS: AtomicU64 = AtomicU64::new(0);
 
 // Test Hooks
 static TEST_MEMORY_LIMIT: RwLock<Option<usize>> = RwLock::new(None);
 static TEST_DISK_USAGE: RwLock<Option<(u64, u64)>> = RwLock::new(None);
+static TEST_L1_EVICTION_INTERVAL_MS: RwLock<Option<u64>> = RwLock::new(None);
+// **[2026-02-26]** 变更原因：测试需要控制内存上限刷新间隔。
+// **[2026-02-26]** 变更目的：避免测试等待真实时间。
+// **[2026-02-26]** 变更说明：None 表示使用默认常量。
+// **[2026-02-26]** 变更说明：仅测试使用。
+// **[2026-02-26]** 变更说明：不影响生产逻辑。
+static TEST_MEMORY_LIMIT_REFRESH_INTERVAL_MS: RwLock<Option<u64>> = RwLock::new(None);
+// **[2026-02-26]** 变更原因：测试需要控制 L2 合并阈值。
+// **[2026-02-26]** 变更目的：用小数据覆盖分支逻辑。
+// **[2026-02-26]** 变更说明：None 表示使用默认常量。
+// **[2026-02-26]** 变更说明：仅测试使用。
+// **[2026-02-26]** 变更说明：不影响生产逻辑。
+static TEST_L2_COMPACTION_MAX_BYTES: RwLock<Option<usize>> = RwLock::new(None);
+// **[2026-02-26]** 变更原因：测试需要稳定的总内存值。
+// **[2026-02-26]** 变更目的：避免环境差异导致断言波动。
+// **[2026-02-26]** 变更说明：None 表示使用系统值。
+// **[2026-02-26]** 变更说明：仅测试使用。
+// **[2026-02-26]** 变更说明：不影响生产逻辑。
+static TEST_TOTAL_MEMORY_BYTES: RwLock<Option<usize>> = RwLock::new(None);
 
 fn get_l2_cache() -> &'static ShardedL2Cache {
-    L2_CACHE.get_or_init(ShardedL2Cache::new)
+    L2_CACHE.get_or_init(|| ShardedL2Cache::new())
 }
 
 pub struct CacheManager;
@@ -447,6 +502,41 @@ impl CacheManager {
     #[allow(dead_code)]
     pub fn set_test_disk_usage(usage: Option<(u64, u64)>) {
         *TEST_DISK_USAGE.write().unwrap() = usage;
+    }
+
+    #[allow(dead_code)]
+    pub fn set_test_l1_eviction_interval_ms(interval_ms: Option<u64>) {
+        *TEST_L1_EVICTION_INTERVAL_MS.write().unwrap() = interval_ms;
+    }
+
+    #[allow(dead_code)]
+    // **[2026-02-26]** 变更原因：测试需要控制内存上限刷新间隔。
+    // **[2026-02-26]** 变更目的：避免测试等待真实时间。
+    // **[2026-02-26]** 变更说明：None 回退默认常量。
+    // **[2026-02-26]** 变更说明：仅测试使用。
+    // **[2026-02-26]** 变更说明：不影响生产逻辑。
+    pub fn set_test_memory_limit_refresh_interval_ms(interval_ms: Option<u64>) {
+        *TEST_MEMORY_LIMIT_REFRESH_INTERVAL_MS.write().unwrap() = interval_ms;
+    }
+
+    #[allow(dead_code)]
+    // **[2026-02-26]** 变更原因：测试需要控制 L2 合并阈值。
+    // **[2026-02-26]** 变更目的：使用小数据覆盖分支逻辑。
+    // **[2026-02-26]** 变更说明：None 回退默认常量。
+    // **[2026-02-26]** 变更说明：仅测试使用。
+    // **[2026-02-26]** 变更说明：不影响生产逻辑。
+    pub fn set_test_l2_compaction_max_bytes(max_bytes: Option<usize>) {
+        *TEST_L2_COMPACTION_MAX_BYTES.write().unwrap() = max_bytes;
+    }
+
+    #[allow(dead_code)]
+    // **[2026-02-26]** 变更原因：测试需要固定总内存值。
+    // **[2026-02-26]** 变更目的：避免环境差异导致断言波动。
+    // **[2026-02-26]** 变更说明：None 回退系统值。
+    // **[2026-02-26]** 变更说明：仅测试使用。
+    // **[2026-02-26]** 变更说明：不影响生产逻辑。
+    pub fn set_test_total_memory_bytes(total_bytes: Option<usize>) {
+        *TEST_TOTAL_MEMORY_BYTES.write().unwrap() = total_bytes;
     }
 
     #[allow(dead_code)]
@@ -475,6 +565,18 @@ impl CacheManager {
             .acquire_owned()
             .await
             .unwrap()
+    }
+
+    // **[2026-02-26]** 变更原因：多个节流与缓存逻辑需要统一的时间来源。
+    // **[2026-02-26]** 变更目的：避免重复写入时间获取逻辑。
+    // **[2026-02-26]** 变更说明：单位为毫秒。
+    // **[2026-02-26]** 变更说明：用于测试与生产路径一致性。
+    // **[2026-02-26]** 变更说明：不改变时间精度。
+    fn now_ms() -> u64 {
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64
     }
 
     /// Check table volatility and determine cache policy.
@@ -631,8 +733,10 @@ impl CacheManager {
 
         // 1. Handle Parentheses Wrapper: (A) -> A
         // Only if parentheses wrap the ENTIRE string
-        if s.starts_with('(') && s.ends_with(')') && Self::is_balanced_wrapper(s) {
-            return Self::canonicalize_sql(&s[1..s.len() - 1]);
+        if s.starts_with('(') && s.ends_with(')') {
+            if Self::is_balanced_wrapper(s) {
+                return Self::canonicalize_sql(&s[1..s.len() - 1]);
+            }
         }
 
         // 2. Split by OR (Lowest Precedence)
@@ -803,6 +907,8 @@ impl CacheManager {
     }
 
     /// Check if L1 entry should be promoted to L2 based on access frequency
+
+    /// Check if L1 entry should be promoted to L2 based on access frequency
     pub fn should_promote_to_l2(key: &str) -> bool {
         if let Some(entry) = get_l1_cache_index().read().unwrap().get(key) {
             let count = entry.access_count.load(Ordering::Relaxed);
@@ -821,76 +927,155 @@ impl CacheManager {
         let mut cache = get_l1_cache_index().write().unwrap();
         cache.insert(key, entry);
 
-        // Trigger L1 eviction check (TODO)
+        Self::maybe_check_l1_disk_eviction();
     }
 
-    /// Helper: Get Total System Memory via CMD (Windows specific: PowerShell)
-    fn get_total_memory_via_cmd() -> usize {
-        let output = Command::new("powershell")
-            .args([
-                "-Command",
-                "Get-CimInstance Win32_OperatingSystem | Select-Object -ExpandProperty TotalVisibleMemorySize",
-            ])
-            .output();
+    fn l1_eviction_check_interval_ms() -> u64 {
+        if let Some(interval) = *TEST_L1_EVICTION_INTERVAL_MS.read().unwrap() {
+            return interval;
+        }
+        L1_EVICTION_CHECK_INTERVAL_MS
+    }
 
-        match output {
-            Ok(o) if o.status.success() => {
-                let stdout = String::from_utf8_lossy(&o.stdout);
-                // Output is just the number in KB, e.g., "33160636"
-                // Might have whitespace
-                let val_str = stdout.trim();
-                if let Ok(kb) = val_str.parse::<usize>() {
-                    return kb * 1024; // Convert KB to Bytes
-                }
-            }
-            _ => {}
+    // **[2026-02-26]** 变更原因：L1 驱逐检查需要节流。
+    // **[2026-02-26]** 变更目的：避免频繁磁盘扫描与锁争用。
+    // **[2026-02-26]** 变更说明：仅当超过间隔才触发检查。
+    // **[2026-02-26]** 变更说明：通过原子时间戳记录最近检查。
+    // **[2026-02-26]** 变更说明：不改变驱逐策略与阈值。
+    fn maybe_check_l1_disk_eviction() {
+        let now = Self::now_ms();
+        let last_check = L1_EVICTION_LAST_CHECK_MS.load(Ordering::Relaxed);
+        let interval = Self::l1_eviction_check_interval_ms();
+        if now.saturating_sub(last_check) < interval {
+            return;
+        }
+        L1_EVICTION_LAST_CHECK_MS.store(now, Ordering::Relaxed);
+        Self::check_l1_disk_eviction();
+    }
+
+    // **[2026-02-26]** 变更原因：内存上限缓存需要明确刷新周期。
+    // **[2026-02-26]** 变更目的：统一测试与生产配置来源。
+    // **[2026-02-26]** 变更说明：测试值优先于默认常量。
+    // **[2026-02-26]** 变更说明：返回单位为毫秒。
+    // **[2026-02-26]** 变更说明：仅用于内部刷新判断。
+    fn memory_limit_refresh_interval_ms() -> u64 {
+        if let Some(interval) = *TEST_MEMORY_LIMIT_REFRESH_INTERVAL_MS.read().unwrap() {
+            return interval;
+        }
+        MEMORY_LIMIT_REFRESH_MS
+    }
+
+    // **[2026-02-26]** 变更原因：需要跨平台获取系统总内存。
+    // **[2026-02-26]** 变更目的：移除平台命令依赖。
+    // **[2026-02-26]** 变更说明：测试优先使用固定值。
+    // **[2026-02-26]** 变更说明：sysinfo 返回单位为 KB。
+    // **[2026-02-26]** 变更说明：失败时回退 1GB 以保持可用性。
+    fn get_total_memory_bytes() -> usize {
+        if let Some(total) = *TEST_TOTAL_MEMORY_BYTES.read().unwrap() {
+            return total;
         }
 
-        println!(
-            "[CacheManager] Warning: Failed to get memory via PowerShell. Using fallback 1GB."
-        );
-        1024 * 1024 * 1024 // Fallback 1GB
+        let mut system = System::new_all();
+        system.refresh_memory();
+        let total_kb = system.total_memory() as usize;
+        if total_kb > 0 {
+            return total_kb.saturating_mul(1024);
+        }
+
+        println!("[CacheManager] Warning: Failed to get memory via sysinfo. Using fallback 1GB.");
+        1024 * 1024 * 1024
     }
 
-    /// Helper: Get Disk Usage via CMD (Windows specific: PowerShell)
-    /// Returns (TotalBytes, FreeBytes)
-    fn get_disk_usage_via_cmd(drive_letter: &str) -> (u64, u64) {
-        // drive_letter should be like "C:"
-        let cmd = format!("Get-CimInstance Win32_LogicalDisk | Where-Object DeviceID -eq '{}' | Select-Object Size,FreeSpace", drive_letter);
-        let output = Command::new("powershell").args(["-Command", &cmd]).output();
+    // **[2026-02-26]** 变更原因：盘符解析仅适用于 Windows。
+    // **[2026-02-26]** 变更目的：改为跨平台的挂载点匹配逻辑。
+    // **[2026-02-26]** 变更说明：优先选择最长匹配挂载点。
+    // **[2026-02-26]** 变更说明：获取失败则返回 0 值避免误判。
+    // **[2026-02-26]** 变更说明：与 sysinfo 磁盘列表匹配。
+    fn get_disk_usage_via_sysinfo(cache_dir: &Path) -> (u64, u64) {
+        let disks = Disks::new_with_refreshed_list();
+        let mut best_match: Option<(usize, u64, u64)> = None;
 
-        match output {
-            Ok(o) if o.status.success() => {
-                let stdout = String::from_utf8_lossy(&o.stdout);
-                // Output format:
-                // Size           FreeSpace
-                // ----           ---------
-                // 699699032064   51763453952
-
-                for line in stdout.lines() {
-                    let parts: Vec<&str> = line.split_whitespace().collect();
-                    if parts.len() == 2 {
-                        // Try to parse both as u64
-                        if let (Ok(size), Ok(free)) =
-                            (parts[0].parse::<u64>(), parts[1].parse::<u64>())
-                        {
-                            // Valid line found
-                            return (size, free);
-                        }
-                    }
+        for disk in disks.list() {
+            let mount_point = disk.mount_point();
+            if cache_dir.starts_with(mount_point) {
+                let mount_len = mount_point.as_os_str().len();
+                let candidate = (mount_len, disk.total_space(), disk.available_space());
+                if best_match
+                    .as_ref()
+                    .map(|(len, _, _)| mount_len > *len)
+                    .unwrap_or(true)
+                {
+                    best_match = Some(candidate);
                 }
             }
-            _ => {}
+        }
+
+        if let Some((_, total, free)) = best_match {
+            return (total, free);
         }
 
         (0, 0)
+    }
+
+    // **[2026-02-26]** 变更原因：内存上限读取需要带缓存刷新策略。
+    // **[2026-02-26]** 变更目的：减少系统信息读取频率。
+    // **[2026-02-26]** 变更说明：缓存命中时直接返回缓存值。
+    // **[2026-02-26]** 变更说明：过期时刷新缓存并更新时间戳。
+    // **[2026-02-26]** 变更说明：仅影响内部阈值计算。
+    fn get_memory_limit_bytes_with_now(now_ms: u64) -> usize {
+        if let Some(limit) = *TEST_MEMORY_LIMIT.read().unwrap() {
+            return limit;
+        }
+
+        let last_refresh = MEMORY_LIMIT_LAST_REFRESH_MS.load(Ordering::Relaxed);
+        let cached_value = MEMORY_LIMIT_CACHE.load(Ordering::Relaxed);
+        let refresh_interval = Self::memory_limit_refresh_interval_ms();
+
+        let should_refresh =
+            cached_value == 0 || now_ms.saturating_sub(last_refresh) >= refresh_interval;
+        if !should_refresh {
+            return cached_value;
+        }
+
+        let total_memory = Self::get_total_memory_bytes();
+        let limit = (total_memory as f64 * 0.70) as usize;
+        MEMORY_LIMIT_CACHE.store(limit, Ordering::Relaxed);
+        MEMORY_LIMIT_LAST_REFRESH_MS.store(now_ms, Ordering::Relaxed);
+        limit
+    }
+
+    // **[2026-02-26]** 变更原因：常规调用需要自动注入当前时间。
+    // **[2026-02-26]** 变更目的：减少调用侧传参负担。
+    // **[2026-02-26]** 变更说明：内部委托带时间版本。
+    // **[2026-02-26]** 变更说明：与缓存策略一致。
+    // **[2026-02-26]** 变更说明：不影响测试可控性。
+    fn get_memory_limit_bytes() -> usize {
+        Self::get_memory_limit_bytes_with_now(Self::now_ms())
+    }
+
+    // **[2026-02-26]** 变更原因：L2 合并阈值需要测试覆盖能力。
+    // **[2026-02-26]** 变更目的：允许用小数据覆盖分支逻辑。
+    // **[2026-02-26]** 变更说明：测试值优先，生产使用常量。
+    // **[2026-02-26]** 变更说明：不影响其它缓存逻辑。
+    // **[2026-02-26]** 变更说明：阈值单位为字节。
+    fn l2_compaction_max_bytes() -> usize {
+        if let Some(limit) = *TEST_L2_COMPACTION_MAX_BYTES.read().unwrap() {
+            return limit;
+        }
+        L2_COMPACTION_MAX_BYTES
     }
 
     /// Store data into L2 Cache (Memory) with eviction logic
     pub fn put_l2(key: String, mut batches: Vec<RecordBatch>, cost_ms: u64) {
         // Optimization: Compact small batches into larger ones for sequential read efficiency
         // This reduces fragmentation and improves CPU cache locality during scans.
-        if batches.len() > 1 {
+        // **[2026-02-26]** 变更原因：L2 合并在大批次场景下成本过高。
+        // **[2026-02-26]** 变更目的：增加阈值控制，避免大内存拷贝。
+        // **[2026-02-26]** 变更说明：仅在总大小较小时才合并。
+        // **[2026-02-26]** 变更说明：阈值可在测试中覆盖。
+        // **[2026-02-26]** 变更说明：不影响批次内容与顺序。
+        let total_batch_bytes: usize = batches.iter().map(|b| b.get_array_memory_size()).sum();
+        if batches.len() > 1 && total_batch_bytes <= Self::l2_compaction_max_bytes() {
             if let Some(first) = batches.first() {
                 let schema = first.schema();
                 match concat_batches(&schema, &batches) {
@@ -909,12 +1094,12 @@ impl CacheManager {
         }
 
         // 1. Calculate limits (Read-only check)
-        let memory_limit = if let Some(limit) = *TEST_MEMORY_LIMIT.read().unwrap() {
-            limit
-        } else {
-            let total_memory = Self::get_total_memory_via_cmd();
-            (total_memory as f64 * 0.70) as usize
-        };
+        // **[2026-02-26]** 变更原因：内存上限计算需要缓存并跨平台。
+        // **[2026-02-26]** 变更目的：减少系统信息读取频率并支持 Linux。
+        // **[2026-02-26]** 变更说明：使用带缓存的内存上限计算。
+        // **[2026-02-26]** 变更说明：测试可覆盖内存上限值。
+        // **[2026-02-26]** 变更说明：不改变上限比例。
+        let memory_limit = Self::get_memory_limit_bytes();
 
         // 2. Insert into Cache (Hold Shard Lock briefly)
         {
@@ -1074,7 +1259,7 @@ impl CacheManager {
     /// Two-Tiered TTI Eviction Strategy
     /// - Tier 1 (Probation): If access_count < 2, eviction after 30s idle.
     /// - Tier 2 (Protected): If access_count >= 2, eviction after 5m idle.
-    ///   Uses "Read-Lock Scan" + "Write-Lock Purge" for minimal blocking.
+    /// Uses "Read-Lock Scan" + "Write-Lock Purge" for minimal blocking.
     async fn run_ttl_eviction() {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -1148,24 +1333,20 @@ impl CacheManager {
             return;
         }
 
-        // Determine drive letter
-        let drive = match fs::canonicalize(&cache_dir) {
-            Ok(p) => {
-                let s = p.to_string_lossy().to_string();
-                if let Some(idx) = s.find(':') {
-                    let start = idx.saturating_sub(1);
-                    s[start..idx + 1].to_string()
-                } else {
-                    "C:".to_string()
-                }
-            }
-            Err(_) => "C:".to_string(),
+        // **[2026-02-26]** 变更原因：盘符解析仅适用于 Windows。
+        // **[2026-02-26]** 变更目的：改为跨平台的挂载点匹配逻辑。
+        // **[2026-02-26]** 变更说明：使用 canonical path 避免软链接影响匹配。
+        // **[2026-02-26]** 变更说明：获取失败则直接返回，避免误判。
+        // **[2026-02-26]** 变更说明：与 sysinfo 磁盘列表匹配。
+        let canonical_cache_dir = match fs::canonicalize(&cache_dir) {
+            Ok(path) => path,
+            Err(_) => return,
         };
 
         let (total, free) = if let Some(usage) = *TEST_DISK_USAGE.read().unwrap() {
             usage
         } else {
-            Self::get_disk_usage_via_cmd(&drive)
+            Self::get_disk_usage_via_sysinfo(&canonical_cache_dir)
         };
 
         if total == 0 {
@@ -1225,7 +1406,7 @@ impl CacheManager {
                 if let Ok(entries) = fs::read_dir(&cache_dir) {
                     for entry in entries.flatten() {
                         let path = entry.path();
-                        if path.extension().is_some_and(|ext| ext == "parquet") {
+                        if path.extension().map_or(false, |ext| ext == "parquet") {
                             if let Ok(metadata) = fs::metadata(&path) {
                                 if let Ok(modified) = metadata.modified() {
                                     files.push((path, modified));
@@ -1301,13 +1482,13 @@ impl CacheManager {
         // Ensure cache directory exists
         let cache_dir = Path::new("cache").join("l1");
         if !cache_dir.exists() {
-            fs::create_dir_all(&cache_dir).map_err(DataFusionError::IoError)?;
+            fs::create_dir_all(&cache_dir).map_err(|e| DataFusionError::IoError(e))?;
         }
 
         let file_path = Self::get_cache_file_path(key);
         println!("[CacheManager] Creating cache file: {:?}", file_path);
 
-        let file = File::create(file_path).map_err(DataFusionError::IoError)?;
+        let file = File::create(file_path).map_err(|e| DataFusionError::IoError(e))?;
         let props = WriterProperties::builder().build();
         let writer = ArrowWriter::try_new(file, schema, Some(props))
             .map_err(|e| DataFusionError::External(Box::new(e)))?;
@@ -1341,13 +1522,15 @@ impl CacheManager {
                     shadow_path
                 );
                 let _ = rx.changed().await;
-                if *rx.borrow() == FlightStatus::Completed && Path::new(&shadow_path).exists() {
-                    return Ok(shadow_path);
+                if *rx.borrow() == FlightStatus::Completed {
+                    if Path::new(&shadow_path).exists() {
+                        return Ok(shadow_path);
+                    }
                 }
                 // If failed or missing after wait
-                Err(DataFusionError::Execution(
+                return Err(DataFusionError::Execution(
                     "Concurrent transcoding failed or file missing".to_string(),
-                ))
+                ));
             }
             FlightResult::IsLeader(flight_guard) => {
                 println!(
@@ -1471,6 +1654,35 @@ mod tests {
         assert!(!CacheManager::is_balanced_wrapper("a AND (b)"));
     }
 
+    #[test]
+    // **[2026-02-26]** 变更原因：新增 L1 驱逐节流逻辑需要测试覆盖。
+    // **[2026-02-26]** 变更目的：确保节流时间窗口内不重复触发检查。
+    // **[2026-02-26]** 变更说明：使用测试钩子避免真实磁盘依赖。
+    // **[2026-02-26]** 变更说明：覆盖节流生效与过期刷新两个分支。
+    // **[2026-02-26]** 变更说明：不影响其它测试状态。
+    fn test_l1_eviction_check_throttled() {
+        CacheManager::set_test_l1_eviction_interval_ms(Some(10_000));
+        CacheManager::set_test_disk_usage(Some((100, 0)));
+
+        let now = CacheManager::now_ms();
+        L1_EVICTION_LAST_CHECK_MS.store(now, Ordering::Relaxed);
+
+        CacheManager::put_l1("k1".to_string(), PathBuf::from("cache/l1/a.parquet"), 1, 1);
+
+        let last_check = L1_EVICTION_LAST_CHECK_MS.load(Ordering::Relaxed);
+        assert_eq!(last_check, now);
+
+        let expired = now.saturating_sub(20_000);
+        L1_EVICTION_LAST_CHECK_MS.store(expired, Ordering::Relaxed);
+        CacheManager::put_l1("k2".to_string(), PathBuf::from("cache/l1/b.parquet"), 1, 1);
+
+        let refreshed = L1_EVICTION_LAST_CHECK_MS.load(Ordering::Relaxed);
+        assert!(refreshed > expired);
+
+        CacheManager::set_test_l1_eviction_interval_ms(None);
+        CacheManager::set_test_disk_usage(None);
+    }
+
     #[tokio::test]
     async fn test_eviction_reliability() {
         use datafusion::arrow::array::Int64Builder;
@@ -1528,5 +1740,88 @@ mod tests {
 
         let res_c = CacheManager::get_l2("C");
         assert!(res_c.is_some(), "Item C should be kept (Medium Score)");
+    }
+
+    #[test]
+    // **[2026-02-26]** 变更原因：内存上限缓存刷新逻辑新增可测试路径。
+    // **[2026-02-26]** 变更目的：验证缓存命中与过期刷新行为。
+    // **[2026-02-26]** 变更说明：使用固定总内存值避免环境波动。
+    // **[2026-02-26]** 变更说明：覆盖间隔内不刷新与过期后刷新。
+    // **[2026-02-26]** 变更说明：测试结束恢复钩子状态。
+    fn test_memory_limit_cache_refresh_behavior() {
+        CacheManager::set_test_memory_limit(None);
+        CacheManager::set_test_total_memory_bytes(Some(1000));
+        CacheManager::set_test_memory_limit_refresh_interval_ms(Some(1000));
+        MEMORY_LIMIT_CACHE.store(0, Ordering::Relaxed);
+        MEMORY_LIMIT_LAST_REFRESH_MS.store(0, Ordering::Relaxed);
+
+        let first = CacheManager::get_memory_limit_bytes_with_now(1000);
+        assert_eq!(first, 700);
+
+        CacheManager::set_test_total_memory_bytes(Some(2000));
+        let cached = CacheManager::get_memory_limit_bytes_with_now(1500);
+        assert_eq!(cached, 700);
+
+        let refreshed = CacheManager::get_memory_limit_bytes_with_now(3000);
+        assert_eq!(refreshed, 1400);
+
+        CacheManager::set_test_memory_limit_refresh_interval_ms(None);
+        CacheManager::set_test_total_memory_bytes(None);
+    }
+
+    #[test]
+    // **[2026-02-26]** 变更原因：L2 合并阈值逻辑新增条件分支。
+    // **[2026-02-26]** 变更目的：验证阈值关闭与开启两条路径。
+    // **[2026-02-26]** 变更说明：使用小批次数据控制内存大小。
+    // **[2026-02-26]** 变更说明：分别断言批次数量变化。
+    // **[2026-02-26]** 变更说明：测试结束恢复钩子状态。
+    fn test_l2_compaction_threshold() {
+        use datafusion::arrow::array::Int32Builder;
+        use datafusion::arrow::datatypes::{DataType as ArrowDataType, Field, Schema};
+
+        CacheManager::clear_l2();
+        CacheManager::set_test_memory_limit(Some(10_000_000));
+
+        let schema = Arc::new(Schema::new(vec![Field::new(
+            "a",
+            ArrowDataType::Int32,
+            false,
+        )]));
+
+        let make_batch = |rows: usize| -> RecordBatch {
+            let mut builder = Int32Builder::with_capacity(rows);
+            for i in 0..rows {
+                builder.append_value(i as i32);
+            }
+            let array = builder.finish();
+            RecordBatch::try_new(schema.clone(), vec![Arc::new(array)]).unwrap()
+        };
+
+        CacheManager::set_test_l2_compaction_max_bytes(Some(1));
+        CacheManager::put_l2(
+            "compact_off".to_string(),
+            vec![make_batch(1), make_batch(1)],
+            1,
+        );
+
+        let cache = get_l2_cache();
+        let shard = cache.get_shard("compact_off").read().unwrap();
+        let entry = shard.get("compact_off").unwrap();
+        assert_eq!(entry.data.len(), 2);
+        drop(shard);
+
+        CacheManager::set_test_l2_compaction_max_bytes(Some(1_000_000));
+        CacheManager::put_l2(
+            "compact_on".to_string(),
+            vec![make_batch(1), make_batch(1)],
+            1,
+        );
+
+        let shard = cache.get_shard("compact_on").read().unwrap();
+        let entry = shard.get("compact_on").unwrap();
+        assert_eq!(entry.data.len(), 1);
+
+        CacheManager::set_test_l2_compaction_max_bytes(None);
+        CacheManager::set_test_memory_limit(None);
     }
 }
