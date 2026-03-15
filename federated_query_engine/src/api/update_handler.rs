@@ -41,6 +41,12 @@ pub struct UpdateStyleRequest {
     pub style: crate::session_manager::CellStyle,
 }
 
+#[derive(Deserialize)]
+pub struct UpdateMergeRequest {
+    pub table_name: String,
+    pub range: crate::session_manager::MergeRange,
+}
+
 pub async fn update_cell(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<UpdateCellRequest>,
@@ -120,6 +126,26 @@ pub async fn update_style(
     match state
         .session_manager
         .update_style(&payload.table_name, payload.row, payload.col, payload.style)
+        .await
+    {
+        Ok(msg) => Json(serde_json::json!({
+            "status": "ok",
+            "message": msg
+        })),
+        Err(e) => Json(serde_json::json!({
+            "status": "error",
+            "message": e
+        })),
+    }
+}
+
+pub async fn update_merge(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<UpdateMergeRequest>,
+) -> Json<serde_json::Value> {
+    match state
+        .session_manager
+        .update_merge(&payload.table_name, payload.range)
         .await
     {
         Ok(msg) => Json(serde_json::json!({

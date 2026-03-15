@@ -121,9 +121,17 @@ pub async fn create_app() -> Router {
             post(api::update_handler::batch_update_cells),
         )
         .route("/api/update_style", post(api::update_handler::update_style))
+        .route("/api/update_merge", post(api::update_handler::update_merge))
         .route(
             "/api/create_session",
             post(api::session_handler::create_session),
+        )
+        // - **2026-03-14**: Add sessions list/switch APIs for sandbox tabs.
+        // - **Reason**: Frontend needs session list + active selection switching.
+        .route("/api/sessions", get(api::session_handler::list_sessions))
+        .route(
+            "/api/switch_session",
+            post(api::session_handler::switch_session),
         )
         .route(
             "/api/save_session",

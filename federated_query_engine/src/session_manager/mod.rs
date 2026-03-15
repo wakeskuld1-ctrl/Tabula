@@ -608,6 +608,15 @@ impl SessionManager {
         result
     }
 
+
+    // - **2026-03-14**: Expose active session id for sessions list API.
+    // - **Reason**: Frontend needs to highlight the active sandbox tab deterministically.
+    // - **Purpose**: Keep API response small and avoid leaking full session payloads.
+    pub async fn get_active_session_id(&self, table_name: &str) -> Option<String> {
+        let active = self.active_table_sessions.lock().await;
+        active.get(table_name).cloned()
+    }
+
     /// 删除指定表的所有会话与持久化数据。
     pub async fn delete_table(&self, table_name: &str) -> Result<usize, String> {
         let mut sessions = self.sessions.lock().await;

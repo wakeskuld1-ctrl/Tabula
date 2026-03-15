@@ -200,6 +200,119 @@ async fn test_session_and_update_routes_error_path_smoke() {
     assert_eq!(body["status"], "error");
 }
 
+// - **2026-03-14**: TDD for `/api/sessions` list behavior before implementation.
+// - **Reason**: The frontend sheet tabs must be driven by session list; missing API should fail fast.
+// - **Purpose**: Ensure created sessions are surfaced and the active session id is present.
+// - **Scope**: Response shape + minimal data invariants (status, sessions array, active id).
+#[tokio::test]
+async fn test_sessions_list_returns_created_session_and_active_id() {
+    // - **2026-03-14**: Use a real registered table to mirror production flow.
+    // - **Reason**: Session listing is table-scoped; we need a valid table_name.
+    let (client, base_url) = spawn_test_server().await;
+    let table_name = register_csv_table(
+        &client,
+        &base_url,
+        "pos_sessions_list",
+        "id,name\n1,A\n2,B\n",
+    )
+    .await;
+
+    // - **2026-03-14**: Create one session to verify it appears in the list.
+    // - **Reason**: The list should include sessions created via the API.
+    let session_id = create_session_and_get_id(&client, &base_url, &table_name).await;
+
+    // - **2026-03-14**: Call sessions list endpoint to validate response shape.
+    // - **Reason**: This is the contract the frontend will depend on.
+    let res = client
+        .get(format!(
+            "{}/api/sessions?table_name={}",
+            base_url, table_name
+        ))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let body: Value = res.json().await.unwrap();
+    assert_eq!(body["status"], "ok");
+
+    // - **2026-03-14**: Ensure sessions array contains the created session id.
+    // - **Reason**: Frontend needs stable ids to drive selection.
+    let sessions = body["sessions"].as_array().unwrap();
+    assert!(sessions
+        .iter()
+        .any(|session| session["session_id"] == session_id));
+
+    // - **2026-03-14**: Active session id must be returned and match the created session.
+    // - **Reason**: UI needs to highlight the active tab deterministically.
+    assert_eq!(body["active_session_id"], session_id);
+}
+
+// - **2026-03-14**: TDD for `/api/switch_session` behavior before implementation.
+// - **Reason**: Users must switch between sandboxes; switching should update active session.
+// - **Purpose**: Validate server returns ok and active session id changes accordingly.
+// - **Scope**: Switch endpoint response + follow-up list verification.
+#[tokio::test]
+async fn test_switch_session_updates_active_session() {
+    // - **2026-03-14**: Register a table so sessions can be created.
+    // - **Reason**: Sessions are table-scoped and require a valid table_name.
+    let (client, base_url) = spawn_test_server().await;
+    let table_name = register_csv_table(
+        &client,
+        &base_url,
+        "pos_sessions_switch",
+        "id,name\n1,A\n2,B\n",
+    )
+    .await;
+
+    // - **2026-03-14**: Create two sessions to exercise switching logic.
+    // - **Reason**: We need a non-trivial change in active session id.
+    let first_session_id = create_session_and_get_id(&client, &base_url, &table_name).await;
+    let res = client
+        .post(format!("{}/api/create_session", base_url))
+        .json(&json!({
+            "table_name": table_name,
+            "session_name": "integration_test_session_2"
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let body: Value = res.json().await.unwrap();
+    assert_eq!(body["status"], "ok");
+    let second_session_id = body["session"]["session_id"].as_str().unwrap().to_string();
+
+    // - **2026-03-14**: Switch to the second session.
+    // - **Reason**: This is the primary UX action for sandbox tabs.
+    let res = client
+        .post(format!("{}/api/switch_session", base_url))
+        .json(&json!({
+            "table_name": table_name,
+            "session_id": second_session_id
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let body: Value = res.json().await.unwrap();
+    assert_eq!(body["status"], "ok");
+
+    // - **2026-03-14**: Re-fetch sessions to verify active session id changed.
+    // - **Reason**: Ensures switch has a durable effect, not just a response payload.
+    let res = client
+        .get(format!(
+            "{}/api/sessions?table_name={}",
+            base_url, table_name
+        ))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let body: Value = res.json().await.unwrap();
+    assert_eq!(body["status"], "ok");
+    assert_eq!(body["active_session_id"], second_session_id);
+    assert!(body["active_session_id"] != first_session_id);
+}
+
 #[tokio::test]
 async fn test_unimplemented_routes_return_404() {
     let (client, base_url) = spawn_test_server().await;
@@ -443,4 +556,37 @@ async fn test_positive_flow_update_style_and_verify_metadata_persistence() {
     assert_eq!(persisted_style["bold"], true);
     assert_eq!(persisted_style["color"], "#ff0000");
     assert_eq!(persisted_style["format"], "currency");
+}
+
+#[tokio::test]
+async fn test_update_merge_returns_ok_for_active_session() {
+    let (client, base_url) = spawn_test_server().await;
+    let table_name = register_csv_table(
+        &client,
+        &base_url,
+        "pos_merge",
+        "id,name\n1,A\n2,B\n",
+    )
+    .await;
+
+    let _session_id = create_session_and_get_id(&client, &base_url, &table_name).await;
+
+    let res = client
+        .post(format!("{}/api/update_merge", base_url))
+        .json(&json!({
+            "table_name": table_name,
+            "range": {
+                "start_col": 0,
+                "start_row": 0,
+                "end_col": 1,
+                "end_row": 0
+            }
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let body: Value = res.json().await.unwrap();
+    assert_eq!(body["status"], "ok");
+    assert!(body["message"] == "Merged" || body["message"] == "Unmerged");
 }

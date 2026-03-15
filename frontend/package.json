@@ -6,24 +6,22 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview",
-    "docs:formulas": "node scripts/generate_formula_docs.cjs",
-    "docs:formulas:check": "node scripts/generate_formula_docs.cjs --check"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@fortune-sheet/react": "^1.0.4",
     "@glideapps/glide-data-grid": "^6.0.3",
-    "@univerjs/core": "^0.17.0",
-    "@univerjs/design": "^0.17.0",
-    "@univerjs/docs": "^0.17.0",
-    "@univerjs/docs-ui": "^0.17.0",
-    "@univerjs/engine-formula": "^0.17.0",
-    "@univerjs/engine-render": "^0.17.0",
-    "@univerjs/sheets": "^0.17.0",
-    "@univerjs/sheets-formula": "^0.17.0",
-    "@univerjs/sheets-numfmt": "^0.17.0",
-    "@univerjs/sheets-ui": "^0.17.0",
-    "@univerjs/ui": "^0.17.0",
+    "@univerjs/core": "^0.4.2",
+    "@univerjs/design": "^0.4.2",
+    "@univerjs/docs": "^0.4.2",
+    "@univerjs/docs-ui": "^0.4.2",
+    "@univerjs/engine-formula": "^0.4.2",
+    "@univerjs/engine-render": "^0.4.2",
+    "@univerjs/sheets": "^0.4.2",
+    "@univerjs/sheets-formula": "^0.4.2",
+    "@univerjs/sheets-numfmt": "^0.4.2",
+    "@univerjs/sheets-ui": "^0.4.2",
+    "@univerjs/ui": "^0.4.2",
     "clsx": "^2.0.0",
     "hyperformula": "^3.2.0",
     "react": "^18.2.0",
@@ -34,10 +32,10 @@
     "@types/react": "^18.2.66",
     "@types/react-dom": "^18.2.22",
     "@vitejs/plugin-react": "^4.2.1",
-    "puppeteer": "^19.8.0",
+    "puppeteer": "^24.36.1",
     "typescript": "^5.2.2",
-    "vite": "^8.0.0",
+    "vite": "^5.2.0",
     "vite-plugin-top-level-await": "^1.6.0",
-    "vitest": "^4.1.0"
+    "vite-plugin-wasm": "^3.5.0"
   }
 }
