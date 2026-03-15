@@ -10,6 +10,12 @@ export default defineConfig({
     // - 2026-03-12 21:50: 原因=移除 apiShim，前端通过 GridAPI 直连后端 /api/execute; 目的=消除中间件层。
     react()
   ],
+  // ### Change Log
+  // - 2026-03-15: Reason=vitest should ignore script tests; Purpose=avoid "No test suite" failures
+  test: {
+    include: ["src/**/*.test.ts", "src/**/*.spec.ts"],
+    exclude: ["tests/**", "scripts/**", "**/*.test.cjs", "**/*.spec.cjs"]
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

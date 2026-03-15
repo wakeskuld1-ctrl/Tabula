@@ -30,6 +30,11 @@
       "@/*": ["./src/*"]
     }
   },
+  // ### Change Log
+  // - 2026-03-15: Reason=build should ignore unit tests; Purpose=avoid vitest typings in prod build
   "include": ["src"],
+  // ### Change Log
+  // - 2026-03-15: Reason=tests compile with vitest config only; Purpose=keep tsc build clean
+  "exclude": ["src/utils/__tests__", "**/*.test.ts", "**/*.spec.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
