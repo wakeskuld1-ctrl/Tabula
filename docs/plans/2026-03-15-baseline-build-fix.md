@@ -151,3 +151,4 @@ Expected: PASS£®÷¡…Ÿø…±‡“Î£©
 **2. Parallel Session (separate)** - Open new session with executing-plans, batch execution with checkpoints
 
 **Which approach?**
+

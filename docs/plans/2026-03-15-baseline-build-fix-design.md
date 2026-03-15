@@ -14,6 +14,10 @@
 - 不调整业务语义（会话/样式逻辑保持现状）。
 - 不做接口/前端修改（仅恢复后端基线可编译）。
 
+## 约束
+- **[2026-03-15]** 变更原因：用户要求统一主仓库路径并停止 worktree 开发。
+- **[2026-03-15]** 变更目的：所有修改仅在 D:\Rust\metadata 主仓库进行，.worktrees 仅作比对参考。
+
 ## 根因摘要
 - `metadata_store` 缺失 Session / SheetAttribute 类型与表。
 - `TableMetadata` 缺失 header_rows/header_mode/column_default_formulas_json 字段。
@@ -34,4 +38,5 @@
 ## 验证
 - `cargo test -p metadata_store`（验证新增结构与表的单测）。
 - `cargo test -p federated_query_engine --no-run`（至少可编译）。
+
 
