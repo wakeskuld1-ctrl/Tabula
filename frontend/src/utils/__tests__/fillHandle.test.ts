@@ -1,7 +1,7 @@
 // ### 变更记录
 // - 2026-03-15: 原因=双击填充目标范围需 TDD 锁定; 目的=先失败再实现
 import { describe, expect, test } from "vitest";
-import { getAutoFillDestination } from "../fillHandle";
+import { getAutoFillDestination, chooseAdjacentColumnIndex } from "../fillHandle";
 
 describe("getAutoFillDestination", () => {
   // ### 变更记录
@@ -54,5 +54,43 @@ describe("getAutoFillDestination", () => {
       getAdjacentValue: (row) => values[row - 8] ?? ""
     });
     expect(result).toEqual({ x: 0, y: 8, width: 1, height: 2 });
+  });
+});
+
+describe("chooseAdjacentColumnIndex", () => {
+  // ### 变更记录
+  // - 2026-03-15: 原因=左侧优先规则需锁定; 目的=避免后续回归
+  test("prefers left column when data exists", () => {
+    const selection = { x: 2, y: 5, width: 1, height: 1 };
+    const result = chooseAdjacentColumnIndex({
+      selection,
+      columnCount: 6,
+      hasDataAtColumn: (col) => col === 1
+    });
+    expect(result).toBe(1);
+  });
+
+  // ### 变更记录
+  // - 2026-03-15: 原因=左侧无数据时需回退右侧; 目的=保持可用性
+  test("falls back to right column when left empty", () => {
+    const selection = { x: 2, y: 5, width: 1, height: 1 };
+    const result = chooseAdjacentColumnIndex({
+      selection,
+      columnCount: 6,
+      hasDataAtColumn: (col) => col === 3
+    });
+    expect(result).toBe(3);
+  });
+
+  // ### 变更记录
+  // - 2026-03-15: 原因=左右都无数据不应触发; 目的=避免误填
+  test("returns null when no adjacent data", () => {
+    const selection = { x: 2, y: 5, width: 1, height: 1 };
+    const result = chooseAdjacentColumnIndex({
+      selection,
+      columnCount: 6,
+      hasDataAtColumn: () => false
+    });
+    expect(result).toBeNull();
   });
 });

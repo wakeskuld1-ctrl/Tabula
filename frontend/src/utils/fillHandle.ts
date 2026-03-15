@@ -23,6 +23,27 @@ export function getAutoFillDestination(params: {
   return { x, y, width, height: lastRow - y + 1 };
 }
 
+// **[2026-03-15]** 变更原因：相邻列选择需遵循左侧优先规则。
+// **[2026-03-15]** 变更目的：保证双击填充行为与 Excel 一致。
+export function chooseAdjacentColumnIndex(params: {
+  selection: Rectangle | null | undefined;
+  columnCount: number;
+  hasDataAtColumn: (col: number) => boolean;
+}): number | null {
+  const { selection, columnCount, hasDataAtColumn } = params;
+  if (!selection) return null;
+  if (!Number.isFinite(columnCount) || columnCount <= 0) return null;
+  const leftIndex = selection.x - 1;
+  const rightIndex = selection.x + selection.width;
+  if (leftIndex >= 0 && leftIndex < columnCount && hasDataAtColumn(leftIndex)) {
+    return leftIndex;
+  }
+  if (rightIndex >= 0 && rightIndex < columnCount && hasDataAtColumn(rightIndex)) {
+    return rightIndex;
+  }
+  return null;
+}
+
 // **[2026-03-15]** 变更原因：空值判定需统一。
 // **[2026-03-15]** 变更目的：避免把空字符串当有效数据。
 function isEmptyFillValue(value: unknown) {
