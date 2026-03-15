@@ -44,6 +44,26 @@ export function chooseAdjacentColumnIndex(params: {
   return null;
 }
 
+// **[2026-03-15]** 变更原因：双击命中需随行高变化。
+// **[2026-03-15]** 变更目的：避免缩放后误触或难以触发。
+export function isFillHandleHit(params: {
+  bounds: { x: number; y: number; width: number; height: number } | null | undefined;
+  point: { x: number; y: number };
+  tolerance?: number;
+}): boolean {
+  const { bounds, point, tolerance } = params;
+  if (!bounds) return false;
+  const safeTolerance = Number.isFinite(tolerance) ? Math.max(0, tolerance ?? 0) : 0;
+  const handleSize = Math.min(10, Math.max(2, bounds.height * 0.25));
+  const handleX = bounds.x + bounds.width - handleSize;
+  const handleY = bounds.y + bounds.height - handleSize;
+  const minX = handleX - safeTolerance;
+  const maxX = handleX + handleSize + safeTolerance;
+  const minY = handleY - safeTolerance;
+  const maxY = handleY + handleSize + safeTolerance;
+  return point.x >= minX && point.x <= maxX && point.y >= minY && point.y <= maxY;
+}
+
 // **[2026-03-15]** 变更原因：空值判定需统一。
 // **[2026-03-15]** 变更目的：避免把空字符串当有效数据。
 function isEmptyFillValue(value: unknown) {
