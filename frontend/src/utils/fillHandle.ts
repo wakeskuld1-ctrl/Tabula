@@ -64,6 +64,36 @@ export function isFillHandleHit(params: {
   return point.x >= minX && point.x <= maxX && point.y >= minY && point.y <= maxY;
 }
 
+// **[2026-03-15]** 变更原因：未缓存补抓需要可预测的分页计划。
+// **[2026-03-15]** 变更目的：限制补抓页数与行数避免过载。
+export function buildPrefetchPlan(params: {
+  startRow: number;
+  rowCount: number;
+  pageSize: number;
+  maxPages: number;
+  maxRows: number;
+}): number[] {
+  const safePageSize = Math.max(1, Math.floor(params.pageSize || 1));
+  const safeRowCount = Math.max(0, Math.floor(params.rowCount || 0));
+  const safeStartRow = Math.max(0, Math.floor(params.startRow || 0));
+  if (safeStartRow >= safeRowCount || safeRowCount === 0) return [];
+  const safeMaxPages = Math.max(0, Math.floor(params.maxPages || 0));
+  const safeMaxRows = Math.max(0, Math.floor(params.maxRows || 0));
+  const maxReachRow = safeMaxRows > 0
+    ? Math.min(safeRowCount - 1, safeStartRow + safeMaxRows - 1)
+    : safeRowCount - 1;
+  const startPage = Math.floor(safeStartRow / safePageSize) + 1;
+  const endPage = Math.floor(maxReachRow / safePageSize) + 1;
+  const pages: number[] = [];
+  for (let page = startPage; page <= endPage; page += 1) {
+    pages.push(page);
+  }
+  if (safeMaxPages > 0 && pages.length > safeMaxPages) {
+    return pages.slice(0, safeMaxPages);
+  }
+  return pages;
+}
+
 // **[2026-03-15]** 变更原因：空值判定需统一。
 // **[2026-03-15]** 变更目的：避免把空字符串当有效数据。
 function isEmptyFillValue(value: unknown) {

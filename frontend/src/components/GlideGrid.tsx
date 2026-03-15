@@ -47,7 +47,7 @@ import { resolveFormulaStorage } from "../utils/formulaPersistence";
 import { inferFillValues, shiftFormulaReferencesWithParser } from "../utils/formulaFill.js";
 // **[2026-03-15]** 变更原因：双击填充需要统一范围与列选择逻辑
 // **[2026-03-15]** 变更目的：复用可测试的纯函数实现
-import { getAutoFillDestination, chooseAdjacentColumnIndex } from "../utils/fillHandle";
+import { getAutoFillDestination, chooseAdjacentColumnIndex, isFillHandleHit, buildPrefetchPlan } from "../utils/fillHandle";
 // **[2026-03-14]** 变更原因：批量公式需要统一计算涉及页
 // **[2026-03-14]** 变更目的：为批量刷新提供可测试的纯函数支撑
 import { collectFormulaPages } from "../utils/collectFormulaPages";
@@ -2501,7 +2501,7 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
 
   // **[2026-03-15]** 变更原因：双击填充需检测把手点击位置。
   // **[2026-03-15]** 变更目的：避免误触发自动填充。
-  const handleFillHandleDoubleClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+  const handleFillHandleDoubleClick = useCallback(async (event: React.MouseEvent<HTMLDivElement>) => {
     const selectionRange = selectionRef.current?.current?.range;
     if (!selectionRange) return;
     if (!gridRef.current || !gridWrapperRef.current) return;
@@ -2512,14 +2512,13 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
     const gridRect = gridWrapperRef.current.getBoundingClientRect();
     const localX = event.clientX - gridRect.left;
     const localY = event.clientY - gridRect.top;
-    const handleSize = 8;
-    const handleX = bounds.x + bounds.width - handleSize;
-    const handleY = bounds.y + bounds.height - handleSize;
-    const inHandle =
-      localX >= handleX &&
-      localX <= handleX + handleSize &&
-      localY >= handleY &&
-      localY <= handleY + handleSize;
+    // ### 变更记录
+    // - 2026-03-15: 原因=命中范围需动态; 目的=适配缩放与行高
+    const inHandle = isFillHandleHit({
+      bounds,
+      point: { x: localX, y: localY },
+      tolerance: 2
+    });
     if (!inHandle) return;
 
     const startRow = selectionRange.y;
@@ -2529,14 +2528,35 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
       hasDataAtColumn: (col) => isNonEmptyValue(getCachedValue(col, startRow))
     });
     if (adjacentCol === null) return;
-    const destination = getAutoFillDestination({
+    let destination = getAutoFillDestination({
       selection: selectionRange,
       rowCount,
       getAdjacentValue: (row) => getCachedValue(adjacentCol, row)
     });
+    if (!destination) {
+      // ### 变更记录
+      // - 2026-03-15: 原因=缓存可能不足; 目的=补抓后再尝试扩展
+      const plan = buildPrefetchPlan({
+        startRow,
+        rowCount,
+        pageSize: PAGE_SIZE,
+        maxPages: 3,
+        maxRows: 1000
+      });
+      for (const page of plan) {
+        if (!cache.current.has(page)) {
+          await fetchPage(page);
+        }
+      }
+      destination = getAutoFillDestination({
+        selection: selectionRange,
+        rowCount,
+        getAdjacentValue: (row) => getCachedValue(adjacentCol, row)
+      });
+    }
     if (!destination) return;
     void fillRange(selectionRange, destination);
-  }, [columns.length, rowCount, getCachedValue, isNonEmptyValue, fillRange]);
+  }, [columns.length, rowCount, getCachedValue, isNonEmptyValue, fillRange, fetchPage]);
 
   const onCellEdited = useCallback(
     async (cell: Item, newValue: GridCell) => {
