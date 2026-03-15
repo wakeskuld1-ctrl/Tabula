@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import {
   DataEditor,
   DataEditorProps,
+  DataEditorRef,
   EditListItem,
   GridCell,
   GridCellKind,
@@ -40,7 +41,13 @@ import {
   getFormulaColumnDisplayValue,
   formatCellValue
 } from "../utils/formulaRange.js";
-import { inferFillValues, shiftFormulaReferences } from "../utils/formulaFill.js";
+// **[2026-03-15]** 变更原因：公式需保留原始输入
+// **[2026-03-15]** 变更目的：显示计算值但不覆盖依赖源
+import { resolveFormulaStorage } from "../utils/formulaPersistence";
+import { inferFillValues, shiftFormulaReferencesWithParser } from "../utils/formulaFill.js";
+// **[2026-03-15]** 变更原因：双击填充需要统一范围与列选择逻辑
+// **[2026-03-15]** 变更目的：复用可测试的纯函数实现
+import { getAutoFillDestination, chooseAdjacentColumnIndex } from "../utils/fillHandle";
 // **[2026-03-14]** 变更原因：批量公式需要统一计算涉及页
 // **[2026-03-14]** 变更目的：为批量刷新提供可测试的纯函数支撑
 import { collectFormulaPages } from "../utils/collectFormulaPages";
@@ -50,7 +57,9 @@ import { collectFormulaPendingKeys } from "../utils/collectFormulaPendingKeys";
 // **[2026-03-14]** 变更原因：公式失败需要统一提示文案
 // **[2026-03-14]** 变更目的：保证失败提示一致与可测试
 import { buildFormulaFailureNotice } from "../utils/buildFormulaFailureNotice";
-import { fetchGridData, fetchFilterValues, updateCell, batchUpdateCells } from "../utils/GridAPI";
+// ### Change Log
+// - 2026-03-15: Reason=API route alignment; Purpose=reuse GridAPI for style range updates
+import { fetchGridData, fetchFilterValues, updateCell, batchUpdateCells, updateStyleRange } from "../utils/GridAPI";
 
 const buildFormulaKey = (col: number, row: number) => `${row},${col}`;
 const FILTER_PAGE_SIZE = 200;
@@ -361,6 +370,9 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
   const fetching = useRef<Set<number>>(new Set());
   const [rowCount, setRowCount] = useState<number>(0);
   const gridWrapperRef = useRef<HTMLDivElement>(null);
+  // **[2026-03-15]** 变更原因：双击填充需要获取单元格边界。
+  // **[2026-03-15]** 变更目的：定位填充把手触发区域。
+  const gridRef = useRef<DataEditorRef | null>(null);
   const [columns, setColumns] = useState<GridColumn[]>([]);
   const [columnTypes, setColumnTypes] = useState<string[]>([]);
   const [realColCount, setRealColCount] = useState<number>(0);
@@ -988,6 +1000,12 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
   // Initialize Formula Engine
   const formulaEngine = useRef(FormulaEngine.getInstance());
   // ### 变更记录
+  // - 2026-03-15: 原因=公式需保留原始输入; 目的=公式栏稳定显示
+  const formulaRawOverrides = useRef<Map<string, string>>(new Map());
+  // ### 变更记录
+  // - 2026-03-15: 原因=显示需用计算结果; 目的=不覆盖原始公式
+  const formulaDisplayOverrides = useRef<Map<string, string>>(new Map());
+  // ### 变更记录
   // - 2026-02-16: 原因=公式列判断复 目的=只读与公式栏展示一
   // - 2026-02-16: 原因=减少重复遍历; 目的=提升渲染性能
   const formulaColumnIndexSet = React.useMemo(
@@ -1023,17 +1041,13 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
           // **[2026-02-16]** 变更原因：同步到后端
           // **[2026-02-16]** 变更目的：保证样式可持久化
           console.log(`[GlideGrid] Updating style for range:`, styleRange, style);
-          const res = await fetch("/api/update_style_range", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                  table_name: tableName,
-                  session_id: normalizedSessionId,
-                  range: styleRange,
-                  style: style
-              })
+          // **[2026-03-15]** 变更原因：接口调用需统一；变更目的：复用 GridAPI 的路由与错误处理
+          const data = await updateStyleRange({
+              table_name: tableName,
+              session_id: normalizedSessionId,
+              range: styleRange,
+              style: style
           });
-          const data = await readJsonOrThrow(res, "update_style_range");
           if (data.status === 'ok') {
                // **[2026-02-16]** 变更原因：减少刷新依赖
                // **[2026-02-16]** 变更目的：本地立即生效
@@ -1995,9 +2009,15 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
       // Initialize defaults
       let rawValue = "";
       let displayStr = "";
+      // ### 变更记录
+      // - 2026-03-15: 原因=公式栏需原始表达式; 目的=优先使用 raw 覆盖值
+      const rawOverride = formulaRawOverrides.current.get(`${row},${col}`);
       
       // Check cache for data
-      if (pageData && pageData.data && pageData.data[rowIndexInPage]) {
+      if (rawOverride !== undefined) {
+          rawValue = rawOverride;
+          displayStr = formulaEngine.current.calculate(rawValue, col, row, tableName);
+      } else if (pageData && pageData.data && pageData.data[rowIndexInPage]) {
           const val = pageData.data[rowIndexInPage][col];
           if (val !== undefined) {
                rawValue = val === null ? "" : String(val);
@@ -2052,9 +2072,13 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
        // ### 变更记录
        // - 2026-02-16: 原因=支持单元格格 目的=统一显示格式
        // - 2026-02-16: 原因=仅影响显 目的=保留原始
+       // ### 变更记录
+       // - 2026-03-15: 原因=聚合/查找显示计算值; 目的=显示覆盖优先
+       const displayOverride = formulaDisplayOverrides.current.get(cellKey);
+       const displayBase = displayOverride ?? displayStr;
        const formattedDisplay = style?.format
-           ? formatCellValue(displayStr, style.format)
-           : displayStr;
+           ? formatCellValue(displayBase, style.format)
+           : displayBase;
        // ### 变更记录
        // - 2026-03-14: 原因=公式回显存在等待; 目的=单元格内显示等待态
        // - 2026-03-14: 原因=只影响显示; 目的=不改写原始数据
@@ -2205,6 +2229,15 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
             const oldValue = pageData?.data?.[rowInPage]?.[col];
             const raw = edit.value.data;
             const newValue = typeof raw === "string" ? raw : String(raw ?? "");
+            // ### 变更记录
+            // - 2026-03-15: 原因=批量公式需保留原始输入; 目的=公式栏稳定回显
+            const batchFormulaKey = buildFormulaKey(col, row);
+            if (newValue.trim().startsWith("=")) {
+              formulaRawOverrides.current.set(batchFormulaKey, newValue.trim());
+            } else {
+              formulaRawOverrides.current.delete(batchFormulaKey);
+              formulaDisplayOverrides.current.delete(batchFormulaKey);
+            }
             undoChanges.push({ row, col, oldValue: String(oldValue ?? ""), newValue, colName });
             updates.push({ row, col: colName, val: newValue });
             // **[2026-02-16]** 变更原因：批量更新仍要解析公式元信息
@@ -2356,6 +2389,24 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
     [applyFormulaMetaFromValue, columns, fetchPage, formulaColumnIndexSet, isReadOnly, notifyStackChange, onInvalidateByColumn, onSessionChange, rowCount, sessionId, tableName, addPendingFormulaKeys, clearPendingFormulaKeys, showFormulaNotice]
   );
 
+  // **[2026-03-15]** 变更原因：双击填充需要读取缓存值。
+  // **[2026-03-15]** 变更目的：避免额外网络请求影响交互。
+  const getCachedValue = useCallback((col: number, row: number) => {
+    const page = Math.floor(row / PAGE_SIZE) + 1;
+    const pageData = cache.current.get(page);
+    const rowIndexInPage = row % PAGE_SIZE;
+    const rowData = pageData?.data?.[rowIndexInPage];
+    return rowData ? rowData[col] : undefined;
+  }, []);
+
+  // **[2026-03-15]** 变更原因：双击填充需统一空值判定。
+  // **[2026-03-15]** 变更目的：避免空字符串被当作可用数据。
+  const isNonEmptyValue = useCallback((value: unknown) => {
+    if (value === null || value === undefined) return false;
+    const normalized = typeof value === "string" ? value : String(value);
+    return normalized.trim().length > 0;
+  }, []);
+
   const fillRange = useCallback(
     async (source: Rectangle, target: Rectangle) => {
       if (!source || !target) return false;
@@ -2412,7 +2463,9 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
             const baseCol = c % sourceWidth;
             const baseValue = sourceValues[baseRow]?.[baseCol] ?? "";
             if (String(baseValue).trim().startsWith("=")) {
-              filledValues[r][c] = shiftFormulaReferences(baseValue, c - baseCol, r - baseRow);
+              // ### 变更记录
+              // - 2026-03-15: 原因=整列/整行公式需位移; 目的=解析器路径统一处理
+              filledValues[r][c] = shiftFormulaReferencesWithParser(baseValue, c - baseCol, r - baseRow);
             } else {
               filledValues[r][c] = baseValue;
             }
@@ -2446,6 +2499,45 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
     [columns.length, rowCount, fetchPage, onCellsEdited, formulaColumnIndexSet]
   );
 
+  // **[2026-03-15]** 变更原因：双击填充需检测把手点击位置。
+  // **[2026-03-15]** 变更目的：避免误触发自动填充。
+  const handleFillHandleDoubleClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    const selectionRange = selectionRef.current?.current?.range;
+    if (!selectionRange) return;
+    if (!gridRef.current || !gridWrapperRef.current) return;
+    const bottomCol = selectionRange.x + selectionRange.width - 1;
+    const bottomRow = selectionRange.y + selectionRange.height - 1;
+    const bounds = gridRef.current.getBounds(bottomCol, bottomRow);
+    if (!bounds) return;
+    const gridRect = gridWrapperRef.current.getBoundingClientRect();
+    const localX = event.clientX - gridRect.left;
+    const localY = event.clientY - gridRect.top;
+    const handleSize = 8;
+    const handleX = bounds.x + bounds.width - handleSize;
+    const handleY = bounds.y + bounds.height - handleSize;
+    const inHandle =
+      localX >= handleX &&
+      localX <= handleX + handleSize &&
+      localY >= handleY &&
+      localY <= handleY + handleSize;
+    if (!inHandle) return;
+
+    const startRow = selectionRange.y;
+    const adjacentCol = chooseAdjacentColumnIndex({
+      selection: selectionRange,
+      columnCount: columns.length,
+      hasDataAtColumn: (col) => isNonEmptyValue(getCachedValue(col, startRow))
+    });
+    if (adjacentCol === null) return;
+    const destination = getAutoFillDestination({
+      selection: selectionRange,
+      rowCount,
+      getAdjacentValue: (row) => getCachedValue(adjacentCol, row)
+    });
+    if (!destination) return;
+    void fillRange(selectionRange, destination);
+  }, [columns.length, rowCount, getCachedValue, isNonEmptyValue, fillRange]);
+
   const onCellEdited = useCallback(
     async (cell: Item, newValue: GridCell) => {
       // ### 变更记录
@@ -2474,14 +2566,26 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
       // - 2026-02-15: 原因=异步计算可能延后; 目的=避免旧值被延迟覆盖
       const initialValueSnapshot = initialPageData?.data?.[initialRowIndex]?.[col];
 
+      // ### 变更记录
+      // - 2026-03-15: 原因=统一输入归一化; 目的=避免非字符串导致公式判断异常
       const originalInput = newValue.data;
-      const isFormulaInput = typeof originalInput === "string" && originalInput.trim().startsWith("=");
-      let finalData = newValue.data;
+      const normalizedInput = typeof originalInput === "string"
+          ? originalInput
+          : String(originalInput ?? "");
+      // ### 变更记录
+      // - 2026-03-15: 原因=公式判断需复用; 目的=稳定识别公式输入
+      const isFormulaInput = normalizedInput.trim().startsWith("=");
+      // ### 变更记录
+      // - 2026-03-15: 原因=显示值可能与存储值不同; 目的=保留公式原文
+      let computedDisplayOverride: string | undefined = undefined;
+      // ### 变更记录
+      // - 2026-03-15: 原因=公式相关状态需统一 key; 目的=避免字符串重复
+      const formulaCellKey = buildFormulaKey(col, row);
       // ### 变更记录
       // - 2026-03-14: 原因=公式回显存在等待; 目的=单元格内显示“计算中”
       // - 2026-03-14: 原因=仅作用公式输入; 目的=避免普通编辑误触发
       const pendingKeySet = isFormulaInput
-          ? new Set([buildFormulaKey(col, row)])
+          ? new Set([formulaCellKey])
           : new Set<string>();
       if (pendingKeySet.size > 0) {
           addPendingFormulaKeys(pendingKeySet);
@@ -2489,12 +2593,12 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
 
       // ### 变更记录
       // - 2026-03-14: 原因=多余 try 导致语法错误; 目的=恢复正常语法结构
-          if (typeof originalInput === "string" && originalInput.trim().startsWith("=")) {
-              const parsed = parseAggregateFormula(originalInput.trim());
+          if (normalizedInput.trim().startsWith("=")) {
+              const parsed = parseAggregateFormula(normalizedInput.trim());
               const rangeInfo = getRangeInfo(parsed);
               if (rangeInfo && rangeInfo.columns.length > 0) {
                   onFormulaMetaChange?.(cell[0], cell[1], {
-                      formula: originalInput.trim(),
+                      formula: normalizedInput.trim(),
                       columns: rangeInfo.columns,
                       stale: false,
                       lastUpdatedAt: new Date().toISOString()
@@ -2508,7 +2612,7 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
 
       // --- Backend Formula Interception ---
       const AGG_REGEX = /^=\s*(SUM|COUNT|COUNTA|AVG|AVERAGE|MAX|MIN)\s*\(\s*([A-Z]+)\s*:\s*([A-Z]+)\s*\)\s*$/i;
-      const match = finalData.match(AGG_REGEX);
+      const match = normalizedInput.match(AGG_REGEX);
       if (match) {
            let func = match[1].toUpperCase();
            if (func === "AVERAGE") func = "AVG";
@@ -2521,20 +2625,13 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
                const targetCol = columns[colIdx];
                
                if (targetCol) {
-                   const c = col;
-                   const r = row;
-                   // 1. Optimistic "Calculating..."
-                   const page = Math.floor(r / PAGE_SIZE) + 1;
-                   const rIdx = r % PAGE_SIZE;
-                   const pageData = cache.current.get(page);
-                   if (pageData && pageData.data[rIdx]) {
-                       pageData.data[rIdx][c] = "Calculating...";
-                       setVersion(v => v + 1);
-                   }
+                   // ### 变更记录
+                   // - 2026-03-15: 原因=避免覆盖原始公式; 目的=等待态改由 pending 显示
+                   // - 2026-03-15: 原因=显示与存储分离; 目的=缓存保持原始输入
 
                    try {
                        const sql = `SELECT ${func}("${targetCol.id}") FROM "${tableName}"`;
-                       console.log(`[GlideGrid] Backend Formula: ${finalData} -> ${sql}`);
+                       console.log(`[GlideGrid] Backend Formula: ${normalizedInput} -> ${sql}`);
                        const res = await fetch("/api/execute", {
                            method: "POST",
                            headers: { "Content-Type": "application/json" },
@@ -2542,13 +2639,16 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
                        });
                        const json = await readJsonOrThrow(res, "execute");
                        if (json.rows && json.rows.length > 0 && json.rows[0].length > 0) {
-                           finalData = String(json.rows[0][0]);
+                           computedDisplayOverride = String(json.rows[0][0]);
                        } else {
                            throw new Error(json.error || "No result");
                        }
                    } catch (e) {
                        console.error("Backend formula failed", e);
                        alert("公式计算失败: " + e);
+                       // ### 变更记录
+                       // - 2026-03-15: 原因=失败仍需可见反馈; 目的=显示 #ERROR 而非空白
+                       computedDisplayOverride = "#ERROR";
                        // Restore empty or keep formula? Let's keep formula string so user can edit it
                        // But if we proceed, we will write formula string to backend.
                        // Let's return here to avoid writing broken state?
@@ -2567,7 +2667,7 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
       // Syntax: =XLOOKUP(lookup_value, "TargetTable", "JoinCol", "ReturnCol", [if_not_found])
       // Example: =XLOOKUP(A2, "orders", "order_id", "amount", 0)
       const XLOOKUP_REGEX = /^=XLOOKUP\(\s*([^,]+)\s*,\s*["']?([^"',]+)["']?\s*,\s*["']?([^"',]+)["']?\s*,\s*["']?([^"',]+)["']?\s*(?:,\s*([^)]+))?\s*\)$/i;
-      const xMatch = finalData.match(XLOOKUP_REGEX);
+      const xMatch = normalizedInput.match(XLOOKUP_REGEX);
 
       if (xMatch) {
           const lookupRef = xMatch[1].trim();
@@ -2598,15 +2698,9 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
               }
           }
 
-          // Optimistic "Loading..."
-          const [c, r] = cell;
-          const page = Math.floor(r / PAGE_SIZE) + 1;
-          const rIdx = r % PAGE_SIZE;
-          const pageData = cache.current.get(page);
-          if (pageData && pageData.data[rIdx]) {
-              pageData.data[rIdx][c] = "Loading...";
-              setVersion(v => v + 1);
-          }
+          // ### 变更记录
+          // - 2026-03-15: 原因=避免覆盖原始公式; 目的=等待态由 pending 控制
+          // - 2026-03-15: 原因=显示与存储分离; 目的=缓存保持原始输入
 
           try {
               const safeValue = lookupValue.replace(/'/g, "''");
@@ -2620,20 +2714,20 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
               });
               const json = await readJsonOrThrow(res, "execute");
               if (json.rows && json.rows.length > 0) {
-                  finalData = String(json.rows[0][0]);
+                  computedDisplayOverride = String(json.rows[0][0]);
               } else {
                   // If ifNotFound is a string literal "...", remove quotes
                   if (ifNotFound.startsWith('"') && ifNotFound.endsWith('"')) {
-                      finalData = ifNotFound.slice(1, -1);
+                      computedDisplayOverride = ifNotFound.slice(1, -1);
                   } else if (ifNotFound.startsWith("'") && ifNotFound.endsWith("'")) {
-                      finalData = ifNotFound.slice(1, -1);
+                      computedDisplayOverride = ifNotFound.slice(1, -1);
                   } else {
-                      finalData = ifNotFound;
+                      computedDisplayOverride = ifNotFound;
                   }
               }
           } catch (e) {
               console.error("XLOOKUP failed", e);
-              finalData = "#ERROR";
+              computedDisplayOverride = "#ERROR";
               alert("XLOOKUP 查询失败: " + e);
           }
       }
@@ -2642,7 +2736,7 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
       // Syntax: =VLOOKUP(LocalVal, TargetTable, ReturnCol, JoinCol)
       // Example: =VLOOKUP(A2, "orders", "amount", "order_id")
       const VLOOKUP_REGEX = /^=VLOOKUP\(\s*([^,]+)\s*,\s*["']?([^"',]+)["']?\s*,\s*["']?([^"',]+)["']?\s*,\s*["']?([^"',]+)["']?\s*\)$/i;
-      const vMatch = finalData.match(VLOOKUP_REGEX);
+      const vMatch = normalizedInput.match(VLOOKUP_REGEX);
       if (vMatch) {
           const lookupRef = vMatch[1].trim(); // e.g. A2 or 123
           const targetTable = vMatch[2].trim();
@@ -2677,15 +2771,9 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
               }
           }
 
-          // Optimistic "Loading..."
-          const [c, r] = cell;
-          const page = Math.floor(r / PAGE_SIZE) + 1;
-          const rIdx = r % PAGE_SIZE;
-          const pageData = cache.current.get(page);
-          if (pageData && pageData.data[rIdx]) {
-              pageData.data[rIdx][c] = "Loading...";
-              setVersion(v => v + 1);
-          }
+          // ### 变更记录
+          // - 2026-03-15: 原因=避免覆盖原始公式; 目的=等待态由 pending 控制
+          // - 2026-03-15: 原因=显示与存储分离; 目的=缓存保持原始输入
 
           try {
               // Construct SQL
@@ -2700,17 +2788,38 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
               });
               const json = await readJsonOrThrow(res, "execute");
               if (json.rows && json.rows.length > 0) {
-                  finalData = String(json.rows[0][0]);
+                  computedDisplayOverride = String(json.rows[0][0]);
               } else {
-                  finalData = "#N/A";
+                  computedDisplayOverride = "#N/A";
               }
           } catch (e) {
               console.error("VLOOKUP failed", e);
-              finalData = "#ERROR";
+              computedDisplayOverride = "#ERROR";
               alert("VLOOKUP 查询失败: " + e);
           }
       }
       // ------------------------------------
+
+      // ### 变更记录
+      // - 2026-03-15: 原因=公式需保留原始输入; 目的=存储与显示分离
+      const resolvedStorage = resolveFormulaStorage(normalizedInput, computedDisplayOverride);
+      // ### 变更记录
+      // - 2026-03-15: 原因=统一最终写入值; 目的=避免被计算结果覆盖
+      const finalData = resolvedStorage.storedValue;
+      // ### 变更记录
+      // - 2026-03-15: 原因=公式栏需原始表达式; 目的=缓存 raw 覆盖值
+      if (resolvedStorage.isFormula) {
+          formulaRawOverrides.current.set(formulaCellKey, resolvedStorage.storedValue);
+      } else {
+          formulaRawOverrides.current.delete(formulaCellKey);
+      }
+      // ### 变更记录
+      // - 2026-03-15: 原因=聚合/查找需显示计算值; 目的=提供显示覆盖
+      if (resolvedStorage.isFormula && computedDisplayOverride !== undefined) {
+          formulaDisplayOverrides.current.set(formulaCellKey, resolvedStorage.displayValue);
+      } else {
+          formulaDisplayOverrides.current.delete(formulaCellKey);
+      }
 
       const colName = columns[col]?.id || `col_${col}`;
       
@@ -2893,7 +3002,12 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
               colName = columns[col].id || "";
           }
           
-          if (pageData && pageData.data[rowIndexInPage]) {
+          // ### 变更记录
+          // - 2026-03-15: 原因=公式栏需原始表达式; 目的=优先读取 raw 覆盖
+          const rawOverride = formulaRawOverrides.current.get(buildFormulaKey(col, row));
+          if (rawOverride !== undefined) {
+              val = rawOverride;
+          } else if (pageData && pageData.data[rowIndexInPage]) {
               val = String(pageData.data[rowIndexInPage][col] ?? "");
           }
           // ### 变更记录
@@ -3609,6 +3723,9 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
             if (filterMenuOpen) setFilterMenuOpen(false);
             if (contextMenuOpen) setContextMenuOpen(false);
         }}
+        // **[2026-03-15]** 变更原因：双击填充需要事件入口。
+        // **[2026-03-15]** 变更目的：捕获把手双击触发自动填充。
+        onDoubleClick={handleFillHandleDoubleClick}
     >
       {/* **[2026-02-16]** 变更原因：提供脚本可定位的表头图标节点。 */}
       {/* **[2026-02-16]** 变更目的：让表头图标与高度验证更稳定。 */}
@@ -3621,6 +3738,7 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
         }}
       />
       <DataEditor
+        ref={gridRef}
         theme={customTheme}
         provideEditor={provideEditor}
         getCellContent={getCellContent}
@@ -3639,6 +3757,15 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
         // **[2026-02-16]** 变更原因：新增批量编辑通道。
         // **[2026-02-16]** 变更目的：提升粘贴与多选编辑体验。
         onCellsEdited={onCellsEdited}
+        // **[2026-03-15]** 变更原因：启用填充把手行为。
+        // **[2026-03-15]** 变更目的：允许拖拽填充与自动填充。
+        allowedFillDirections={"any"}
+        // **[2026-03-15]** 变更原因：填充需走自定义逻辑。
+        // **[2026-03-15]** 变更目的：复用 fillRange 统一处理值与公式位移。
+        onFillPattern={(event) => {
+            event.preventDefault?.();
+            void fillRange(event.patternSource, event.fillDestination);
+        }}
         // Set range to cover the merge
         gridSelection={selection}
         onGridSelectionChange={onGridSelectionChange}
