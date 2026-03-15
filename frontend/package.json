@@ -23,6 +23,7 @@
     "@univerjs/sheets-ui": "^0.4.2",
     "@univerjs/ui": "^0.4.2",
     "clsx": "^2.0.0",
+    "excel-formula-parser": "^1.1.0",
     "hyperformula": "^3.2.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
