@@ -42,6 +42,14 @@ pub struct UpdateStyleRequest {
 }
 
 #[derive(Deserialize)]
+pub struct UpdateStyleRangeRequest {
+    pub table_name: String,
+    pub session_id: Option<String>,
+    pub range: crate::session_manager::MergeRange,
+    pub style: crate::session_manager::CellStyle,
+}
+
+#[derive(Deserialize)]
 pub struct UpdateMergeRequest {
     pub table_name: String,
     pub range: crate::session_manager::MergeRange,
@@ -103,9 +111,14 @@ pub async fn batch_update_cells(
                 success_count += 1;
             }
             Err(e) => {
+                // **[2026-03-15]** 变更原因：前端需要 error 字段展示批量失败原因。
+                // **[2026-03-15]** 变更目的：复用同一错误信息填充 message/error。
+                let error_message =
+                    format!("Batch update failed at row {}: {}", item.row_idx, e.message());
                 return Json(serde_json::json!({
                     "status": "error",
-                    "message": format!("Batch update failed at row {}: {}", item.row_idx, e.message()),
+                    "message": error_message,
+                    "error": error_message,
                     "success_count": success_count
                 }));
             }
@@ -115,7 +128,10 @@ pub async fn batch_update_cells(
     Json(serde_json::json!({
         "status": "ok",
         "message": format!("Batch updated {} cells", success_count),
-        "session_id": last_sid
+        "session_id": last_sid,
+        // **[2026-03-15]** 变更原因：前端响应结构包含可选 error 字段。
+        // **[2026-03-15]** 变更目的：成功路径显式返回空 error 便于统一解析。
+        "error": serde_json::Value::Null
     }))
 }
 
@@ -135,6 +151,39 @@ pub async fn update_style(
         Err(e) => Json(serde_json::json!({
             "status": "error",
             "message": e
+        })),
+    }
+}
+
+// **[2026-03-15]** 变更原因：补充样式范围更新 API。
+// **[2026-03-15]** 变更目的：支持可选 session_id 的样式范围更新。
+pub async fn update_style_range(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<UpdateStyleRangeRequest>,
+) -> Json<serde_json::Value> {
+    match state
+        .session_manager
+        .update_style_range_with_session(
+            &payload.table_name,
+            payload.session_id.as_deref(),
+            payload.range,
+            payload.style,
+        )
+        .await
+    {
+        Ok(msg) => Json(serde_json::json!({
+            "status": "ok",
+            "message": msg,
+            // **[2026-03-15]** 变更原因：前端期望响应含可选 error 字段。
+            // **[2026-03-15]** 变更目的：成功路径显式返回空 error 便于统一解析。
+            "error": serde_json::Value::Null
+        })),
+        Err(e) => Json(serde_json::json!({
+            "status": "error",
+            "message": e,
+            // **[2026-03-15]** 变更原因：错误路径需要同时返回 message/error。
+            // **[2026-03-15]** 变更目的：保证前端统一字段读取与兼容旧逻辑。
+            "error": e
         })),
     }
 }
