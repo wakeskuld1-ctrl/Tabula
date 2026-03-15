@@ -110,7 +110,7 @@ def generate_report():
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Federated Query Engine - Detailed Performance Report</title>
+    <title>Tabula - Detailed Performance Report</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {{ font-family: 'Segoe UI', sans-serif; margin: 20px; background: #f4f7f6; color: #333; }}

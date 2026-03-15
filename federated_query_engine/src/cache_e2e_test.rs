@@ -1,8 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::cache_manager::CacheManager;
-    use crate::datasources::sqlite::FetchStrategy;
-    use crate::datasources::sqlite::SqliteExec;
+    use crate::datasources::sqlite::{FetchStrategy, SqliteExec, SqliteExecParams};
     use datafusion::arrow::datatypes::{DataType, Field, Schema};
     use datafusion::physical_plan::common::collect;
     use datafusion::physical_plan::ExecutionPlan; // Added trait
@@ -56,17 +55,16 @@ mod tests {
             Field::new("val", DataType::Utf8, true),
         ]));
 
-        let exec = SqliteExec::new(
-            db_path.to_string(),
-            "test_table".to_string(),
-            schema.clone(),
-            None,
-            1024,
-            FetchStrategy::Cursor,
-            None,
-            datafusion::common::Statistics::new_unknown(&schema),
-            None,
-        );
+        let exec = SqliteExec::new(SqliteExecParams {
+            db_path: db_path.to_string(),
+            table_name: "test_table".to_string(),
+            schema: schema.clone(),
+            projection: None,
+            batch_size: 1024,
+            fetch_strategy: FetchStrategy::Cursor,
+            limit: None,
+            where_clause: None,
+        });
 
         println!("\n=== Phase 1: Cold Start (L0 -> L1 -> L2) ===");
         let start = std::time::Instant::now();

@@ -6,7 +6,18 @@ use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct MetadataManager {
-    store: Arc<MetadataStore>,
+    pub store: Arc<MetadataStore>,
+}
+
+pub struct RegisterTableParams<'a> {
+    pub catalog: &'a str,
+    pub schema: &'a str,
+    pub table: &'a str,
+    pub file_path: &'a str,
+    pub source_type: &'a str,
+    pub sheet_name: Option<String>,
+    pub header_rows: Option<usize>,
+    pub header_mode: Option<String>,
 }
 
 impl MetadataManager {
@@ -22,13 +33,19 @@ impl MetadataManager {
     pub async fn register_table(
         &self,
         ctx: &SessionContext,
-        catalog: &str,
-        schema: &str,
-        table: &str,
-        file_path: &str,
-        source_type: &str,
-        sheet_name: Option<String>,
+        params: RegisterTableParams<'_>,
     ) -> Result<()> {
+        let RegisterTableParams {
+            catalog,
+            schema,
+            table,
+            file_path,
+            source_type,
+            sheet_name,
+            header_rows,
+            header_mode,
+        } = params;
+        let _ = (&header_rows, &header_mode);
         // 1. Capture Schema from DataFusion
         let schema_json = if let Ok(provider) = ctx.table_provider(table).await {
             let schema = provider.schema();
@@ -61,29 +78,25 @@ impl MetadataManager {
                     });
 
                     if let Ok(iter) = index_iter {
-                        for i in iter {
-                            if let Ok((name, unique)) = i {
-                                let mut cols = Vec::new();
-                                let info_sql = format!("PRAGMA index_info({})", name);
-                                if let Ok(mut info_stmt) = conn.prepare(&info_sql) {
-                                    let col_iter = info_stmt.query_map([], |r| {
-                                        let col_name: String = r.get(2)?;
-                                        Ok(col_name)
-                                    });
-                                    if let Ok(c_iter) = col_iter {
-                                        for c in c_iter {
-                                            if let Ok(cn) = c {
-                                                cols.push(cn);
-                                            }
-                                        }
+                        for (name, unique) in iter.flatten() {
+                            let mut cols = Vec::new();
+                            let info_sql = format!("PRAGMA index_info({})", name);
+                            if let Ok(mut info_stmt) = conn.prepare(&info_sql) {
+                                let col_iter = info_stmt.query_map([], |r| {
+                                    let col_name: String = r.get(2)?;
+                                    Ok(col_name)
+                                });
+                                if let Ok(c_iter) = col_iter {
+                                    for cn in c_iter.flatten() {
+                                        cols.push(cn);
                                     }
                                 }
-                                indexes.push(serde_json::json!({
-                                    "name": name,
-                                    "unique": unique,
-                                    "columns": cols
-                                }));
                             }
+                            indexes.push(serde_json::json!({
+                                "name": name,
+                                "unique": unique,
+                                "columns": cols
+                            }));
                         }
                     }
                 }
@@ -110,6 +123,9 @@ impl MetadataManager {
             schema_json,
             stats_json: None,
             indexes_json,
+            header_rows: None,
+            header_mode: None,
+            column_default_formulas_json: None,
         };
 
         self.store
@@ -158,12 +174,16 @@ mod tests {
         // 1. Register a table with 3-layer namespace
         mgr.register_table(
             &ctx,
-            "my_cat",
-            "my_schema",
-            "orders",
-            "/tmp/orders.csv",
-            "csv",
-            None,
+            RegisterTableParams {
+                catalog: "my_cat",
+                schema: "my_schema",
+                table: "orders",
+                file_path: "/tmp/orders.csv",
+                source_type: "csv",
+                sheet_name: None,
+                header_rows: None,
+                header_mode: None,
+            },
         )
         .await
         .expect("Failed to register table");
@@ -181,12 +201,16 @@ mod tests {
         // 3. Register another table (default namespace simulation)
         mgr.register_table(
             &ctx,
-            "datafusion",
-            "public",
-            "users",
-            "/tmp/users.xlsx",
-            "excel",
-            Some("Sheet1".to_string()),
+            RegisterTableParams {
+                catalog: "datafusion",
+                schema: "public",
+                table: "users",
+                file_path: "/tmp/users.xlsx",
+                source_type: "excel",
+                sheet_name: Some("Sheet1".to_string()),
+                header_rows: None,
+                header_mode: None,
+            },
         )
         .await
         .expect("Failed to register users");

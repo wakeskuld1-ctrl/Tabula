@@ -1,6 +1,6 @@
 ﻿# Frontend UI
 
-This is the React frontend for the Federated Query Engine.
+This is the React frontend for Tabula.
 
 ## 公式样例（全量） / Full Formula Examples
 

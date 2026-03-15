@@ -1,0 +1,137 @@
+diff --git a/node_modules/@glideapps/glide-data-grid/dist/cjs/data-editor/data-editor.js b/node_modules/@glideapps/glide-data-grid/dist/cjs/data-editor/data-editor.js
+index 081f3b3..590dfbd 100644
+--- a/node_modules/@glideapps/glide-data-grid/dist/cjs/data-editor/data-editor.js
++++ b/node_modules/@glideapps/glide-data-grid/dist/cjs/data-editor/data-editor.js
+@@ -2241,8 +2241,10 @@ const DataEditorImpl = (p, forwardedRef) => {
+             let text;
+             const textPlain = "text/plain";
+             const textHtml = "text/html";
+-            if (navigator.clipboard.read !== undefined) {
+-                const clipboardContent = await navigator.clipboard.read();
++            const clipboard = navigator.clipboard;
++            const isSecureContext = window.isSecureContext === true;
++            if (isSecureContext && (clipboard?.read !== undefined)) {
++                const clipboardContent = await clipboard.read();
+                 for (const item of clipboardContent) {
+                     if (item.types.includes(textHtml)) {
+                         const htmlBlob = await item.getType(textHtml);
+@@ -2259,8 +2261,8 @@ const DataEditorImpl = (p, forwardedRef) => {
+                     }
+                 }
+             }
+-            else if (navigator.clipboard.readText !== undefined) {
+-                text = await navigator.clipboard.readText();
++            else if (isSecureContext && (clipboard?.readText !== undefined)) {
++                text = await clipboard.readText();
+             }
+             else if (e !== undefined && e?.clipboardData !== null) {
+                 if (e.clipboardData.types.includes(textHtml)) {
+diff --git a/node_modules/@glideapps/glide-data-grid/dist/esm/data-editor/data-editor.js b/node_modules/@glideapps/glide-data-grid/dist/esm/data-editor/data-editor.js
+index ec05aa9..bf06fe0 100644
+--- a/node_modules/@glideapps/glide-data-grid/dist/esm/data-editor/data-editor.js
++++ b/node_modules/@glideapps/glide-data-grid/dist/esm/data-editor/data-editor.js
+@@ -2212,26 +2212,32 @@ const DataEditorImpl = (p, forwardedRef) => {
+             let text;
+             const textPlain = "text/plain";
+             const textHtml = "text/html";
+-            if (navigator.clipboard.read !== undefined) {
+-                const clipboardContent = await navigator.clipboard.read();
+-                for (const item of clipboardContent) {
+-                    if (item.types.includes(textHtml)) {
+-                        const htmlBlob = await item.getType(textHtml);
+-                        const html = await htmlBlob.text();
+-                        const decoded = decodeHTML(html);
+-                        if (decoded !== undefined) {
+-                            data = decoded;
+-                            break;
++            const clipboard = navigator.clipboard;
++            const isSecureContext = window.isSecureContext === true;
++            if (isSecureContext && clipboard && typeof clipboard.read === 'function') {
++                try {
++                    const clipboardContent = await clipboard.read();
++                    for (const item of clipboardContent) {
++                        if (item.types.includes(textHtml)) {
++                            const htmlBlob = await item.getType(textHtml);
++                            const html = await htmlBlob.text();
++                            const decoded = decodeHTML(html);
++                            if (decoded !== undefined) {
++                                data = decoded;
++                                break;
++                            }
++                        }
++                        if (item.types.includes(textPlain)) {
++                            // eslint-disable-next-line unicorn/no-await-expression-member
++                            text = await (await item.getType(textPlain)).text();
+                         }
+                     }
+-                    if (item.types.includes(textPlain)) {
+-                        // eslint-disable-next-line unicorn/no-await-expression-member
+-                        text = await (await item.getType(textPlain)).text();
+-                    }
++                } catch (e) {
++                    console.warn("Clipboard read failed, fallback to event", e);
+                 }
+             }
+-            else if (navigator.clipboard.readText !== undefined) {
+-                text = await navigator.clipboard.readText();
++            else if (isSecureContext && (clipboard?.readText !== undefined)) {
++                text = await clipboard.readText();
+             }
+             else if (e !== undefined && e?.clipboardData !== null) {
+                 if (e.clipboardData.types.includes(textHtml)) {
+diff --git a/node_modules/@glideapps/glide-data-grid/src/data-editor/data-editor.tsx b/node_modules/@glideapps/glide-data-grid/src/data-editor/data-editor.tsx
+index 8036f5f..82140eb 100644
+--- a/node_modules/@glideapps/glide-data-grid/src/data-editor/data-editor.tsx
++++ b/node_modules/@glideapps/glide-data-grid/src/data-editor/data-editor.tsx
+@@ -3374,26 +3374,34 @@ const DataEditorImpl: React.ForwardRefRenderFunction<DataEditorRef, DataEditorPr
+                 const textPlain = "text/plain";
+                 const textHtml = "text/html";
+ 
+-                if (navigator.clipboard.read !== undefined) {
+-                    const clipboardContent = await navigator.clipboard.read();
+-
+-                    for (const item of clipboardContent) {
+-                        if (item.types.includes(textHtml)) {
+-                            const htmlBlob = await item.getType(textHtml);
+-                            const html = await htmlBlob.text();
+-                            const decoded = decodeHTML(html);
+-                            if (decoded !== undefined) {
+-                                data = decoded;
+-                                break;
++                const clipboard = navigator.clipboard;
++                const isSecureContext = window.isSecureContext === true;
++
++                // Fix: Explicit null check & Try-Catch wrapper
++                if (isSecureContext && clipboard && typeof clipboard.read === 'function') {
++                    try {
++                        const clipboardContent = await clipboard.read();
++
++                        for (const item of clipboardContent) {
++                            if (item.types.includes(textHtml)) {
++                                const htmlBlob = await item.getType(textHtml);
++                                const html = await htmlBlob.text();
++                                const decoded = decodeHTML(html);
++                                if (decoded !== undefined) {
++                                    data = decoded;
++                                    break;
++                                }
++                            }
++                            if (item.types.includes(textPlain)) {
++                                // eslint-disable-next-line unicorn/no-await-expression-member
++                                text = await (await item.getType(textPlain)).text();
+                             }
+                         }
+-                        if (item.types.includes(textPlain)) {
+-                            // eslint-disable-next-line unicorn/no-await-expression-member
+-                            text = await (await item.getType(textPlain)).text();
+-                        }
++                    } catch (e) {
++                        console.warn("Clipboard read failed, fallback to event", e);
+                     }
+-                } else if (navigator.clipboard.readText !== undefined) {
+-                    text = await navigator.clipboard.readText();
++                } else if (isSecureContext && clipboard?.readText !== undefined) {
++                    text = await clipboard.readText();
+                 } else if (e !== undefined && e?.clipboardData !== null) {
+                     if (e.clipboardData.types.includes(textHtml)) {
+                         const html = e.clipboardData.getData(textHtml);

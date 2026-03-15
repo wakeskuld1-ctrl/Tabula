@@ -1,15 +1,14 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import wasm from 'vite-plugin-wasm'
-import topLevelAwait from 'vite-plugin-top-level-await'
 import path from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
-    react(),
-    wasm(),
-    topLevelAwait()
+    // ### 变更记录
+    // - 2026-03-11 23:06: 原因=前台已彻底切到 GlideGrid 路线; 目的=移除 Wasm 专用构建插件，避免残留配置干扰。
+    // - 2026-03-12 21:50: 原因=移除 apiShim，前端通过 GridAPI 直连后端 /api/execute; 目的=消除中间件层。
+    react()
   ],
   resolve: {
     alias: {

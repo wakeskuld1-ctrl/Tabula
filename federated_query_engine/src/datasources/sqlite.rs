@@ -8,7 +8,6 @@ use arrow::datatypes::{DataType, Schema, SchemaRef};
 use arrow::record_batch::RecordBatch;
 use async_trait::async_trait;
 use datafusion::catalog::Session;
-use datafusion::common::Statistics;
 use datafusion::datasource::{TableProvider, TableType};
 use datafusion::error::{DataFusionError, Result};
 use datafusion::execution::TaskContext;
@@ -55,18 +54,30 @@ pub struct SqliteExec {
     where_clause: Option<String>,
 }
 
+#[derive(Debug, Clone)]
+pub struct SqliteExecParams {
+    pub db_path: String,
+    pub table_name: String,
+    pub schema: SchemaRef,
+    pub projection: Option<Vec<usize>>,
+    pub batch_size: usize,
+    pub fetch_strategy: FetchStrategy,
+    pub limit: Option<usize>,
+    pub where_clause: Option<String>,
+}
+
 impl SqliteExec {
-    pub fn new(
-        db_path: String,
-        table_name: String,
-        schema: SchemaRef,
-        projection: Option<Vec<usize>>,
-        batch_size: usize,
-        fetch_strategy: FetchStrategy,
-        limit: Option<usize>,
-        _statistics: Statistics,
-        where_clause: Option<String>,
-    ) -> Self {
+    pub fn new(params: SqliteExecParams) -> Self {
+        let SqliteExecParams {
+            db_path,
+            table_name,
+            schema,
+            projection,
+            batch_size,
+            fetch_strategy,
+            limit,
+            where_clause,
+        } = params;
         let properties = PlanProperties::new(
             EquivalenceProperties::new(schema.clone()),
             datafusion::physical_plan::Partitioning::UnknownPartitioning(1),
@@ -304,94 +315,69 @@ impl ExecutionPlan for SqliteExec {
         let mut flight_guard = None;
 
         if volatility_policy == CachePolicy::UseCache {
-            loop {
-                match CacheManager::join_or_start_flight(cache_key.clone()) {
-                    crate::cache_manager::FlightResult::IsLeader(guard) => {
-                        // We are the chosen one. Proceed to source query.
-                        flight_guard = Some(guard);
-                        break;
-                    }
-                    crate::cache_manager::FlightResult::IsFollower(rx) => {
-                        // Someone else is fetching. Wait for them (Async Task).
-                        println!(
-                            "[SqliteExec] Cache Stampede Protection: Waiting for key {}",
-                            cache_key
-                        );
+            match CacheManager::join_or_start_flight(cache_key.clone()) {
+                crate::cache_manager::FlightResult::IsLeader(guard) => {
+                    flight_guard = Some(guard);
+                }
+                crate::cache_manager::FlightResult::IsFollower(rx) => {
+                    println!(
+                        "[SqliteExec] Cache Stampede Protection: Waiting for key {}",
+                        cache_key
+                    );
 
-                        let (tx, stream_rx) = mpsc::channel(10);
-                        let key_clone = cache_key.clone();
+                    let (tx, stream_rx) = mpsc::channel(10);
+                    let key_clone = cache_key.clone();
+                    let db_path_retry = db_path.clone();
+                    let table_name_retry = table_name.clone();
+                    let schema_retry = schema.clone();
+                    let batch_size_retry = batch_size;
+                    let where_clause_retry = where_clause.clone();
+                    let volatility_policy_retry = volatility_policy;
 
-                        // Clone params for retry
-                        let db_path_retry = db_path.clone();
-                        let table_name_retry = table_name.clone();
-                        let schema_retry = schema.clone();
-                        let batch_size_retry = batch_size;
-                        let where_clause_retry = where_clause.clone();
-                        let volatility_policy_retry = volatility_policy;
+                    tokio::spawn(async move {
+                        let mut current_rx = rx;
+                        loop {
+                            let status = if current_rx.changed().await.is_err() {
+                                crate::cache_manager::FlightStatus::Failed
+                            } else {
+                                *current_rx.borrow()
+                            };
 
-                        tokio::spawn(async move {
-                            let mut current_rx = rx;
-                            loop {
-                                // Wait for status change
-                                let status = if current_rx.changed().await.is_err() {
-                                    // Sender dropped (likely panicked or cancelled)
-                                    crate::cache_manager::FlightStatus::Failed
-                                } else {
-                                    *current_rx.borrow()
-                                };
-
-                                if status == crate::cache_manager::FlightStatus::Completed {
-                                    // Success! Read from L2 or L1
-                                    // Try L2 first
-                                    if let Some(batches) = CacheManager::get_l2(&key_clone) {
-                                        println!(
-                                            "[SqliteExec] Singleflight: Reading from L2 for key {}",
-                                            key_clone
-                                        );
-                                        for batch in batches {
-                                            if tx.send(Ok(batch)).await.is_err() {
-                                                break;
-                                            }
+                            if status == crate::cache_manager::FlightStatus::Completed {
+                                if let Some(batches) = CacheManager::get_l2(&key_clone) {
+                                    println!(
+                                        "[SqliteExec] Singleflight: Reading from L2 for key {}",
+                                        key_clone
+                                    );
+                                    for batch in batches {
+                                        if tx.send(Ok(batch)).await.is_err() {
+                                            break;
                                         }
-                                        break;
                                     }
+                                    break;
+                                }
 
-                                    // Try L1
-                                    if let Some(path) = CacheManager::get_l1_file(&key_clone) {
-                                        println!(
-                                            "[SqliteExec] Singleflight: Reading from L1 for key {}",
-                                            key_clone
-                                        );
-                                        match TokioFile::open(&path).await {
-                                            Ok(file) => {
-                                                match ParquetRecordBatchStreamBuilder::new(file)
-                                                    .await
-                                                {
-                                                    Ok(builder) => match builder.build() {
-                                                        Ok(mut stream) => {
-                                                            while let Some(res) =
-                                                                stream.next().await
-                                                            {
-                                                                let res = res.map_err(|e| {
-                                                                    DataFusionError::External(
-                                                                        Box::new(e),
-                                                                    )
-                                                                });
-                                                                if tx.send(res).await.is_err() {
-                                                                    break;
-                                                                }
+                                if let Some(path) = CacheManager::get_l1_file(&key_clone) {
+                                    println!(
+                                        "[SqliteExec] Singleflight: Reading from L1 for key {}",
+                                        key_clone
+                                    );
+                                    match TokioFile::open(&path).await {
+                                        Ok(file) => {
+                                            match ParquetRecordBatchStreamBuilder::new(file).await {
+                                                Ok(builder) => match builder.build() {
+                                                    Ok(mut stream) => {
+                                                        while let Some(res) = stream.next().await {
+                                                            let res = res.map_err(|e| {
+                                                                DataFusionError::External(Box::new(
+                                                                    e,
+                                                                ))
+                                                            });
+                                                            if tx.send(res).await.is_err() {
+                                                                break;
                                                             }
                                                         }
-                                                        Err(e) => {
-                                                            let _ = tx
-                                                                .send(Err(
-                                                                    DataFusionError::External(
-                                                                        Box::new(e),
-                                                                    ),
-                                                                ))
-                                                                .await;
-                                                        }
-                                                    },
+                                                    }
                                                     Err(e) => {
                                                         let _ = tx
                                                             .send(Err(DataFusionError::External(
@@ -399,67 +385,76 @@ impl ExecutionPlan for SqliteExec {
                                                             )))
                                                             .await;
                                                     }
+                                                },
+                                                Err(e) => {
+                                                    let _ = tx
+                                                        .send(Err(DataFusionError::External(
+                                                            Box::new(e),
+                                                        )))
+                                                        .await;
                                                 }
                                             }
-                                            Err(e) => {
-                                                let _ =
-                                                    tx.send(Err(DataFusionError::IoError(e))).await;
-                                            }
                                         }
-                                        break;
+                                        Err(e) => {
+                                            let _ = tx.send(Err(DataFusionError::IoError(e))).await;
+                                        }
                                     }
-
-                                    // If we are here, completed but missing data? Fallback to retry.
-                                    println!("[SqliteExec] Cache entry missing after flight completion. Retrying...");
-                                } else if status == crate::cache_manager::FlightStatus::InProgress {
-                                    continue;
+                                    break;
                                 }
 
-                                // Failed or Cancelled or Missing Data -> Retry
-                                println!("[SqliteExec] Flight failed/cancelled. Retrying as Leader for key {}", key_clone);
-                                match CacheManager::join_or_start_flight(key_clone.clone()) {
-                                    crate::cache_manager::FlightResult::IsLeader(guard) => {
-                                        spawn_fetch_and_sidecar(
-                                            tx,
-                                            db_path_retry,
-                                            table_name_retry,
-                                            schema_retry,
-                                            batch_size_retry,
-                                            where_clause_retry,
-                                            key_clone,
-                                            volatility_policy_retry,
-                                            Some(guard),
-                                        );
-                                        break;
-                                    }
-                                    crate::cache_manager::FlightResult::IsFollower(new_rx) => {
-                                        current_rx = new_rx;
-                                    }
+                                println!(
+                                    "[SqliteExec] Cache entry missing after flight completion. Retrying..."
+                                );
+                            } else if status == crate::cache_manager::FlightStatus::InProgress {
+                                continue;
+                            }
+
+                            println!(
+                                "[SqliteExec] Flight failed/cancelled. Retrying as Leader for key {}",
+                                key_clone
+                            );
+                            match CacheManager::join_or_start_flight(key_clone.clone()) {
+                                crate::cache_manager::FlightResult::IsLeader(guard) => {
+                                    spawn_fetch_and_sidecar(SpawnFetchRequest {
+                                        tx,
+                                        db_path: db_path_retry,
+                                        table_name: table_name_retry,
+                                        schema: schema_retry,
+                                        batch_size: batch_size_retry,
+                                        where_clause: where_clause_retry,
+                                        cache_key: key_clone,
+                                        volatility_policy: volatility_policy_retry,
+                                        flight_guard: Some(guard),
+                                    });
+                                    break;
+                                }
+                                crate::cache_manager::FlightResult::IsFollower(new_rx) => {
+                                    current_rx = new_rx;
                                 }
                             }
-                        });
+                        }
+                    });
 
-                        return Ok(Box::pin(RecordBatchStreamAdapter::new(
-                            self.schema.clone(),
-                            ReceiverStream::new(stream_rx),
-                        )));
-                    }
+                    return Ok(Box::pin(RecordBatchStreamAdapter::new(
+                        self.schema.clone(),
+                        ReceiverStream::new(stream_rx),
+                    )));
                 }
             }
         }
 
         // 4. L0 (源): 读取SQLite + Sidecar写入 (L1) + 内存填充 (L2)
-        spawn_fetch_and_sidecar(
+        spawn_fetch_and_sidecar(SpawnFetchRequest {
             tx,
             db_path,
             table_name,
-            schema.clone(),
+            schema: schema.clone(),
             batch_size,
             where_clause,
             cache_key,
             volatility_policy,
             flight_guard,
-        );
+        });
 
         Ok(Box::pin(RecordBatchStreamAdapter::new(
             self.schema.clone(),
@@ -468,7 +463,7 @@ impl ExecutionPlan for SqliteExec {
     }
 }
 
-fn spawn_fetch_and_sidecar(
+struct SpawnFetchRequest {
     tx: mpsc::Sender<Result<RecordBatch, DataFusionError>>,
     db_path: String,
     table_name: String,
@@ -478,7 +473,20 @@ fn spawn_fetch_and_sidecar(
     cache_key: String,
     volatility_policy: CachePolicy,
     flight_guard: Option<FlightGuard>,
-) {
+}
+
+fn spawn_fetch_and_sidecar(req: SpawnFetchRequest) {
+    let SpawnFetchRequest {
+        tx,
+        db_path,
+        table_name,
+        schema,
+        batch_size,
+        where_clause,
+        cache_key,
+        volatility_policy,
+        flight_guard,
+    } = req;
     let cache_path = CacheManager::get_cache_file_path(&cache_key);
     let (cache_tx, mut cache_rx) = mpsc::channel::<RecordBatch>(500);
     let cache_schema = schema.clone();
@@ -579,10 +587,8 @@ fn spawn_fetch_and_sidecar(
                             if let Some(g) = &_guard {
                                 g.mark_completed();
                             }
-                        } else {
-                            if let Some(g) = &_guard {
-                                g.mark_failed();
-                            }
+                        } else if let Some(g) = &_guard {
+                            g.mark_failed();
                         }
                     } else {
                         let _ = tokio::fs::remove_file(&temp_path).await;
@@ -610,16 +616,16 @@ fn spawn_fetch_and_sidecar(
         };
 
         let res = tokio::task::spawn_blocking(move || {
-            read_sqlite_data(
+            read_sqlite_data(SqliteReadRequest {
                 tx,
-                if enable_sidecar { Some(cache_tx) } else { None },
+                cache_tx: if enable_sidecar { Some(cache_tx) } else { None },
                 db_path,
                 table_name,
                 schema,
-                None,
+                _projection: None,
                 batch_size,
                 where_clause,
-            )
+            })
         })
         .await;
 
@@ -631,7 +637,7 @@ fn spawn_fetch_and_sidecar(
     });
 }
 
-fn read_sqlite_data(
+struct SqliteReadRequest {
     tx: mpsc::Sender<Result<RecordBatch, DataFusionError>>,
     cache_tx: Option<mpsc::Sender<RecordBatch>>,
     db_path: String,
@@ -640,7 +646,19 @@ fn read_sqlite_data(
     _projection: Option<Vec<usize>>,
     batch_size: usize,
     where_clause: Option<String>,
-) -> Result<(), DataFusionError> {
+}
+
+fn read_sqlite_data(req: SqliteReadRequest) -> Result<(), DataFusionError> {
+    let SqliteReadRequest {
+        tx,
+        cache_tx,
+        db_path,
+        table_name,
+        schema,
+        _projection: _,
+        batch_size,
+        where_clause,
+    } = req;
     let start_exec = std::time::Instant::now();
     let metrics = get_metrics_registry();
     metrics.record_l0_request();
@@ -735,7 +753,7 @@ fn read_sqlite_data(
 
             // Send to Sidecar (blocking to ensure data integrity)
             if let Some(ctx) = &cache_tx {
-                if let Err(_) = ctx.blocking_send(batch.clone()) {
+                if ctx.blocking_send(batch.clone()).is_err() {
                     // println!("WARN: Sidecar channel closed!");
                 }
             }
@@ -754,7 +772,7 @@ fn read_sqlite_data(
             return Ok(());
         }
         if let Some(ctx) = &cache_tx {
-            if let Err(_) = ctx.blocking_send(batch.clone()) {
+            if ctx.blocking_send(batch.clone()).is_err() {
                 // println!("WARN: Sidecar channel closed!");
             }
         }
@@ -790,17 +808,16 @@ impl TableProvider for SqliteTable {
         _filters: &[datafusion::logical_expr::Expr],
         limit: Option<usize>,
     ) -> Result<Arc<dyn ExecutionPlan>> {
-        Ok(Arc::new(SqliteExec::new(
-            self.db_path.clone(),
-            self.table_name.clone(),
-            self.schema.clone(),
-            projection.cloned(),
-            1024,
-            FetchStrategy::Cursor,
+        Ok(Arc::new(SqliteExec::new(SqliteExecParams {
+            db_path: self.db_path.clone(),
+            table_name: self.table_name.clone(),
+            schema: self.schema.clone(),
+            projection: projection.cloned(),
+            batch_size: 1024,
+            fetch_strategy: FetchStrategy::Cursor,
             limit,
-            Statistics::new_unknown(&self.schema),
-            None,
-        )))
+            where_clause: None,
+        })))
     }
 }
 
@@ -888,17 +905,16 @@ mod tests {
             Field::new("val", DataType::Utf8, true),
         ]));
 
-        let exec = SqliteExec::new(
-            db_path.to_string(),
-            "cache_test".to_string(),
-            schema.clone(),
-            None,
-            1024,
-            FetchStrategy::Cursor,
-            None,
-            Statistics::new_unknown(&schema),
-            None,
-        );
+        let exec = SqliteExec::new(SqliteExecParams {
+            db_path: db_path.to_string(),
+            table_name: "cache_test".to_string(),
+            schema: schema.clone(),
+            projection: None,
+            batch_size: 1024,
+            fetch_strategy: FetchStrategy::Cursor,
+            limit: None,
+            where_clause: None,
+        });
 
         // 0. Setup Mock Environment
         // Mock disk usage to prevent eviction (Total: 100GB, Free: 50GB -> 50% usage)

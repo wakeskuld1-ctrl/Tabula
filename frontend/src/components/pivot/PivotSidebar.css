@@ -1,0 +1,245 @@
+/* **[2026-02-26]** 变更原因：与全局深色主题不一致；变更目的：统一视觉风格与对比度，提升可读性。 */
+.pivot-sidebar {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 300px;
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    box-shadow: -2px 0 20px rgba(0,0,0,0.35);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    font-family: 'Segoe UI', sans-serif;
+    color: var(--text);
+    backdrop-filter: blur(12px);
+}
+
+/* **[2026-02-26]** 变更原因：顶部栏仍是浅色；变更目的：与整体深色主题一致。 */
+.pivot-header {
+    padding: 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--panel-solid);
+}
+
+/* **[2026-02-26]** 变更原因：标题在深色背景对比不足；变更目的：提升可读性。 */
+.pivot-header h3 {
+    margin: 0;
+    font-size: 14px;
+    color: var(--text);
+}
+
+/* **[2026-02-26]** 变更原因：关闭按钮颜色过浅；变更目的：与全局按钮风格对齐。 */
+.close-btn {
+    border: none;
+    background: none;
+    font-size: 18px;
+    cursor: pointer;
+    color: var(--muted);
+}
+
+.close-btn:focus-visible,
+.dropped-item .remove:focus-visible,
+.pivot-search input:focus-visible,
+.update-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* **[2026-02-26]** 变更原因：搜索区域底色过亮；变更目的：减少突兀感。 */
+.pivot-search {
+    padding: 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+/* **[2026-02-26]** 变更原因：输入框样式与全局不一致；变更目的：统一控件视觉与聚焦体验。 */
+.pivot-search input {
+    width: 100%;
+    padding: 6px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--panel-strong);
+    color: var(--text);
+    outline: none;
+}
+
+/* **[2026-02-26]** 变更原因：字段列表背景过亮；变更目的：保证字段可见且与主题一致。 */
+.pivot-field-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+    background: var(--panel);
+}
+
+/* **[2026-02-26]** 变更原因：字段项背景与文字对比不足；变更目的：提升字段可见性。 */
+.pivot-field-item {
+    padding: 6px 8px;
+    margin-bottom: 4px;
+    background: var(--panel-solid);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: grab;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    color: var(--text);
+}
+
+/* **[2026-02-26]** 变更原因：Hover 颜色不协调；变更目的：统一交互反馈。 */
+.pivot-field-item:hover {
+    background: var(--panel-strong);
+}
+
+/* **[2026-02-26]** 变更原因：拖拽区域底色不一致；变更目的：减少视觉分裂。 */
+.pivot-zones-container {
+    height: 300px;
+    border-top: 2px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    background: var(--panel);
+}
+
+/* **[2026-02-26]** 变更原因：分隔线过亮；变更目的：保持细节一致性。 */
+.pivot-zone-row {
+    flex: 1;
+    display: flex;
+    border-bottom: 1px solid var(--border);
+}
+
+/* **[2026-02-26]** 变更原因：拖拽分区边界冲突；变更目的：统一边框。 */
+.pivot-drop-zone {
+    flex: 1;
+    border-right: 1px solid var(--border);
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.pivot-drop-zone:last-child {
+    border-right: none;
+}
+
+/* **[2026-02-26]** 变更原因：区域标题颜色偏深；变更目的：与全局次级文本一致。 */
+.pivot-drop-zone h4 {
+    margin: 0 0 6px 0;
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+}
+
+/* **[2026-02-26]** 变更原因：占位容器背景过亮；变更目的：增强拖拽区域层次。 */
+.drop-list {
+    flex: 1;
+    overflow-y: auto;
+    background: var(--panel-solid);
+    border: 1px dashed var(--border);
+    padding: 4px;
+}
+
+/* **[2026-02-26]** 变更原因：占位提示可读性不足；变更目的：在深色背景中清晰可见。 */
+.placeholder {
+    color: var(--muted);
+    font-size: 11px;
+    text-align: center;
+    margin-top: 10px;
+}
+
+/* **[2026-02-26]** 变更原因：已放置项颜色冲突；变更目的：强调但不刺眼。 */
+.dropped-item {
+    padding: 4px 6px;
+    margin-bottom: 2px;
+    background: rgba(92, 225, 255, 0.08); /* 轻微高亮 */
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 11px;
+    display: flex;
+    justify-content: space-between;
+    color: var(--text);
+}
+
+/* **[2026-02-26]** 变更原因：移除按钮颜色不统一；变更目的：使用全局 muted 色。 */
+.dropped-item .remove {
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    padding: 0;
+    line-height: 1;
+    color: var(--muted);
+    font-weight: bold;
+}
+
+/* **[2026-02-26]** 变更原因：Hover 颜色与危险色不一致；变更目的：加强删除提醒。 */
+.dropped-item .remove:hover {
+    color: var(--danger);
+}
+
+/* **[2026-02-26]** 变更原因：底部操作区背景偏亮；变更目的：与顶部区域一致。 */
+.pivot-footer {
+    padding: 12px;
+    border-top: 1px solid var(--border);
+    background: var(--panel-solid);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    font-size: 12px;
+}
+
+/* **[2026-02-26]** 变更原因：输出选择布局需要更清晰；变更目的：提高可发现性。 */
+.output-mode-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+/* **[2026-02-26]** 变更原因：单选项文字可读性不足；变更目的：保持次级文本规范。 */
+.output-mode-selector label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    color: var(--muted);
+}
+
+/* **[2026-02-26]** 变更原因：单选控件在暗色背景缺少强调；变更目的：与全局强调色一致。 */
+.output-mode-selector input {
+    accent-color: var(--accent);
+}
+
+/* **[2026-02-26]** 变更原因：按钮区需要统一布局；变更目的：保持左右平衡。 */
+.action-buttons {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* **[2026-02-26]** 变更原因：生成按钮颜色不匹配；变更目的：复用全局强调色。 */
+.update-btn {
+    padding: 6px 12px;
+    background: linear-gradient(135deg, rgba(92, 225, 255, 0.18), rgba(139, 92, 246, 0.12));
+    color: var(--text);
+    border: 1px solid rgba(92, 225, 255, 0.35);
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+/* **[2026-02-26]** 变更原因：输出选择上移；变更目的：提高可发现性。 */
+/* **[2026-02-26]** 变更原因：输出选择上移后缺乏标题；变更目的：明确该区域的用途。 */
+.pivot-output-mode {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel-solid);
+}
+/* **[2026-02-26]** 变更原因：区域标题不明显；变更目的：提示用户先做输出选择。 */
+.pivot-output-title {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 6px;
+}

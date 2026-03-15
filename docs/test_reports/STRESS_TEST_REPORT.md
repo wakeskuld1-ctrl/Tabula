@@ -1,16 +1,16 @@
-# Federated Query Engine - Stress Test & Validation Report
+# Tabula - Stress Test & Validation Report
 
 > **[2026-02-26] 变更原因：迁移根目录测试报告；变更目的：统一归档至 docs/test_reports**
 
 **Date:** 2026-01-25
 **Tester:** Trae AI (Expert Code Assistant)
 **Environment:** Windows, Rust 1.84+
-**Target:** `federated_query_engine` (Core Cache Logic)
+**Target:** `tabula-server` (Core Cache Logic)
 
 ---
 
 ## 1. Executive Summary
-A comprehensive end-to-end stress test was conducted to validate the four core capabilities of the Federated Query Engine: **Source Awareness**, **Smart Tiering**, **Automatic Noise Reduction**, and **Concurrency Resistance**.
+A comprehensive end-to-end stress test was conducted to validate the four core capabilities of Tabula: **Source Awareness**, **Smart Tiering**, **Automatic Noise Reduction**, and **Concurrency Resistance**.
 
 The system **PASSED** all scenarios. The implementation demonstrates high robustness, effectively handling concurrency storms, adapting to source changes, and managing memory/disk resources intelligently.
 
@@ -69,7 +69,7 @@ The system **PASSED** all scenarios. The implementation demonstrates high robust
 2.  **Volatile Table Tuning**: The volatility threshold (3 updates/10s) is conservative. For write-heavy workloads, this might cause cache thrashing. Consider making this configurable per table via metadata.
 
 ## 4. Conclusion
-The `federated_query_engine` is production-ready regarding its caching and concurrency stability. The implemented features work harmoniously to provide a consistent, high-performance data access layer.
+The `tabula-server` is production-ready regarding its caching and concurrency stability. The implemented features work harmoniously to provide a consistent, high-performance data access layer.
 
 **Final Score: 98/100**
 *(Points deducted only for potential cold-start index scanning optimizations)*

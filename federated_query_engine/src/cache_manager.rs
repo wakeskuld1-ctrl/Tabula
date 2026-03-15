@@ -425,7 +425,7 @@ static TEST_MEMORY_LIMIT: RwLock<Option<usize>> = RwLock::new(None);
 static TEST_DISK_USAGE: RwLock<Option<(u64, u64)>> = RwLock::new(None);
 
 fn get_l2_cache() -> &'static ShardedL2Cache {
-    L2_CACHE.get_or_init(|| ShardedL2Cache::new())
+    L2_CACHE.get_or_init(ShardedL2Cache::new)
 }
 
 pub struct CacheManager;
@@ -631,10 +631,8 @@ impl CacheManager {
 
         // 1. Handle Parentheses Wrapper: (A) -> A
         // Only if parentheses wrap the ENTIRE string
-        if s.starts_with('(') && s.ends_with(')') {
-            if Self::is_balanced_wrapper(s) {
-                return Self::canonicalize_sql(&s[1..s.len() - 1]);
-            }
+        if s.starts_with('(') && s.ends_with(')') && Self::is_balanced_wrapper(s) {
+            return Self::canonicalize_sql(&s[1..s.len() - 1]);
         }
 
         // 2. Split by OR (Lowest Precedence)
@@ -805,8 +803,6 @@ impl CacheManager {
     }
 
     /// Check if L1 entry should be promoted to L2 based on access frequency
-
-    /// Check if L1 entry should be promoted to L2 based on access frequency
     pub fn should_promote_to_l2(key: &str) -> bool {
         if let Some(entry) = get_l1_cache_index().read().unwrap().get(key) {
             let count = entry.access_count.load(Ordering::Relaxed);
@@ -831,7 +827,10 @@ impl CacheManager {
     /// Helper: Get Total System Memory via CMD (Windows specific: PowerShell)
     fn get_total_memory_via_cmd() -> usize {
         let output = Command::new("powershell")
-            .args(&["-Command", "Get-CimInstance Win32_OperatingSystem | Select-Object -ExpandProperty TotalVisibleMemorySize"])
+            .args([
+                "-Command",
+                "Get-CimInstance Win32_OperatingSystem | Select-Object -ExpandProperty TotalVisibleMemorySize",
+            ])
             .output();
 
         match output {
@@ -858,9 +857,7 @@ impl CacheManager {
     fn get_disk_usage_via_cmd(drive_letter: &str) -> (u64, u64) {
         // drive_letter should be like "C:"
         let cmd = format!("Get-CimInstance Win32_LogicalDisk | Where-Object DeviceID -eq '{}' | Select-Object Size,FreeSpace", drive_letter);
-        let output = Command::new("powershell")
-            .args(&["-Command", &cmd])
-            .output();
+        let output = Command::new("powershell").args(["-Command", &cmd]).output();
 
         match output {
             Ok(o) if o.status.success() => {
@@ -1077,7 +1074,7 @@ impl CacheManager {
     /// Two-Tiered TTI Eviction Strategy
     /// - Tier 1 (Probation): If access_count < 2, eviction after 30s idle.
     /// - Tier 2 (Protected): If access_count >= 2, eviction after 5m idle.
-    /// Uses "Read-Lock Scan" + "Write-Lock Purge" for minimal blocking.
+    ///   Uses "Read-Lock Scan" + "Write-Lock Purge" for minimal blocking.
     async fn run_ttl_eviction() {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -1156,7 +1153,7 @@ impl CacheManager {
             Ok(p) => {
                 let s = p.to_string_lossy().to_string();
                 if let Some(idx) = s.find(':') {
-                    let start = if idx >= 1 { idx - 1 } else { 0 };
+                    let start = idx.saturating_sub(1);
                     s[start..idx + 1].to_string()
                 } else {
                     "C:".to_string()
@@ -1228,7 +1225,7 @@ impl CacheManager {
                 if let Ok(entries) = fs::read_dir(&cache_dir) {
                     for entry in entries.flatten() {
                         let path = entry.path();
-                        if path.extension().map_or(false, |ext| ext == "parquet") {
+                        if path.extension().is_some_and(|ext| ext == "parquet") {
                             if let Ok(metadata) = fs::metadata(&path) {
                                 if let Ok(modified) = metadata.modified() {
                                     files.push((path, modified));
@@ -1304,13 +1301,13 @@ impl CacheManager {
         // Ensure cache directory exists
         let cache_dir = Path::new("cache").join("l1");
         if !cache_dir.exists() {
-            fs::create_dir_all(&cache_dir).map_err(|e| DataFusionError::IoError(e))?;
+            fs::create_dir_all(&cache_dir).map_err(DataFusionError::IoError)?;
         }
 
         let file_path = Self::get_cache_file_path(key);
         println!("[CacheManager] Creating cache file: {:?}", file_path);
 
-        let file = File::create(file_path).map_err(|e| DataFusionError::IoError(e))?;
+        let file = File::create(file_path).map_err(DataFusionError::IoError)?;
         let props = WriterProperties::builder().build();
         let writer = ArrowWriter::try_new(file, schema, Some(props))
             .map_err(|e| DataFusionError::External(Box::new(e)))?;
@@ -1344,15 +1341,13 @@ impl CacheManager {
                     shadow_path
                 );
                 let _ = rx.changed().await;
-                if *rx.borrow() == FlightStatus::Completed {
-                    if Path::new(&shadow_path).exists() {
-                        return Ok(shadow_path);
-                    }
+                if *rx.borrow() == FlightStatus::Completed && Path::new(&shadow_path).exists() {
+                    return Ok(shadow_path);
                 }
                 // If failed or missing after wait
-                return Err(DataFusionError::Execution(
+                Err(DataFusionError::Execution(
                     "Concurrent transcoding failed or file missing".to_string(),
-                ));
+                ))
             }
             FlightResult::IsLeader(flight_guard) => {
                 println!(

@@ -4,7 +4,7 @@
 
 **测试日期**: 2026-01-25
 **测试环境**: Windows / Rust 1.84
-**测试模块**: `federated_query_engine::cache_manager`
+**测试模块**: `tabula_server::cache_manager`
 
 ## 1. 测试概览
 本次测试旨在验证多级缓存架构 (L0-L1-L2) 的完整生命周期，包括缓存命中、一致性检查、内存保护及磁盘淘汰机制。
