@@ -180,3 +180,65 @@ impl MetadataStore {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // **[2026-03-15]** 变更原因：先复现会话与样式属性缺失导致的基线编译问题。
+    // **[2026-03-15]** 变更目的：用最小可复现测试驱动补齐 Session / SheetAttribute 能力。
+    // **[2026-03-15]** 变更说明：测试先红后绿，满足 TDD 要求。
+    #[test]
+    fn test_session_and_sheet_attributes_roundtrip() {
+        let db_path = "test_metadata_sessions.db";
+        let _ = std::fs::remove_file(db_path);
+
+        let store = MetadataStore::new(db_path).expect("init store");
+
+        let session = Session {
+            session_id: "s1".to_string(),
+            table_name: "t1".to_string(),
+            friendly_name: Some("Draft".to_string()),
+            lance_path: "path".to_string(),
+            created_at: 1,
+            is_default: true,
+            parent_session_id: None,
+            last_accessed_at: 1,
+        };
+        store.create_session(&session).expect("create session");
+
+        let sessions = store.list_all_sessions().expect("list sessions");
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0].session_id, "s1");
+
+        let attr = SheetAttribute {
+            session_id: "s1".to_string(),
+            cell_key: "0,0".to_string(),
+            attr_type: "style".to_string(),
+            attr_value: "{}".to_string(),
+        };
+        store.set_sheet_attribute(&attr).expect("set attr");
+
+        let attrs = store
+            .get_sheet_attributes("s1")
+            .expect("get attrs");
+        assert_eq!(attrs.len(), 1);
+        assert_eq!(attrs[0].cell_key, "0,0");
+
+        let _ = store
+            .delete_sheet_attributes_by_session("s1")
+            .expect("delete attrs");
+        let attrs = store
+            .get_sheet_attributes("s1")
+            .expect("get attrs after delete");
+        assert!(attrs.is_empty());
+
+        let _ = store.delete_session("s1").expect("delete session");
+        let sessions = store
+            .list_all_sessions()
+            .expect("list sessions after delete");
+        assert!(sessions.is_empty());
+
+        let _ = std::fs::remove_file(db_path);
+    }
+}
