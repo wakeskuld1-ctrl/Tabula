@@ -26,3 +26,27 @@ export function getWriteGuardState(input: { sessionId?: string; isReadOnly?: boo
     message: canWrite ? "" : READONLY_ALERT_MESSAGE,
   };
 }
+
+// ### Change Log
+// - 2026-03-16: Reason=Multiple UI entry points need same guard; Purpose=centralize alert behavior.
+// - 2026-03-16: Reason=Prevent silent write failures; Purpose=trigger alert before write calls.
+export function guardWriteAction(input: {
+  sessionId?: string;
+  isReadOnly?: boolean;
+  onBlocked?: (message: string) => void;
+}) {
+  // ### Change Log
+  // - 2026-03-16: Reason=Reuse shared guard state; Purpose=keep logic consistent.
+  const state = getWriteGuardState(input);
+  // ### Change Log
+  // - 2026-03-16: Reason=When blocked, UI must alert; Purpose=avoid silent no-op.
+  if (!state.canWrite) {
+    // ### Change Log
+    // - 2026-03-16: Reason=Alert callback may be optional; Purpose=guard against undefined.
+    input.onBlocked?.(state.message);
+    return false;
+  }
+  // ### Change Log
+  // - 2026-03-16: Reason=Writable sessions should proceed; Purpose=signal caller to continue.
+  return true;
+}

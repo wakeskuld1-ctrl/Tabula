@@ -22,6 +22,9 @@ import { ensureColumns } from './utils/GridAPI';
 // ### Change Log
 // - 2026-03-15: Reason=Hide invalid system tables; Purpose=avoid sys_metadata selection errors
 import { filterUserVisibleTables } from './utils/tableList';
+// ### Change Log
+// - 2026-03-16: Reason=Readonly sessions must block writes; Purpose=centralize guard logic + alerts.
+import { getWriteGuardState, guardWriteAction } from './utils/sessionWriteGuard';
 
 const toExcelColumnLabel = (index: number): string => {
   let result = '';
@@ -102,6 +105,20 @@ const App: React.FC = () => {
   // - 2026-03-15: Reason=Loader completion should auto-hide; Purpose=store timer handle safely
   const debugAutoHideTimer = useRef<number | undefined>(undefined);
   const [isReadOnly, setIsReadOnly] = useState<boolean>(false);
+  // ### Change Log
+  // - 2026-03-16: Reason=Readonly sessions must block writes; Purpose=derive unified guard state.
+  const writeGuardState = getWriteGuardState({ sessionId, isReadOnly });
+  // ### Change Log
+  // - 2026-03-16: Reason=Default session has no id; Purpose=single flag to lock write UI.
+  const isWriteLocked = !writeGuardState.canWrite;
+  // ### Change Log
+  // - 2026-03-16: Reason=Write intent should alert immediately; Purpose=shared guard with alert.
+  const guardWrite = () =>
+    guardWriteAction({
+      sessionId,
+      isReadOnly,
+      onBlocked: (message) => alert(message),
+    });
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const [canUndo, setCanUndo] = useState<boolean>(false);
   const [canRedo, setCanRedo] = useState<boolean>(false);
@@ -618,7 +635,9 @@ const App: React.FC = () => {
       } else {
         // ### Change Log
         // - 2026-03-15: Reason=current-sheet needs persistence; Purpose=write pivot to current session
-        if (isReadOnly) {
+        // ### Change Log
+        // - 2026-03-16: Reason=Readonly or missing session must block writes; Purpose=align with guard.
+        if (isWriteLocked) {
           setDebugInfo(formatPivotPersistError({
             step: "current_sheet",
             message: "当前会话只读，无法写入 Pivot 结果"
@@ -713,6 +732,11 @@ const App: React.FC = () => {
   };
 
   const handleStyleChange = async (style: any) => {
+    // ### Change Log
+    // - 2026-03-16: Reason=Readonly sessions must block style writes; Purpose=alert before updates.
+    if (!guardWrite()) {
+      return;
+    }
     if (!gridRef.current) {
       // ### 变更记录
       // - 2026-03-14: Reason=Fix garbled literal; Purpose=prevent unterminated string error.
@@ -728,6 +752,11 @@ const App: React.FC = () => {
   };
 
   const handleMerge = async () => {
+    // ### Change Log
+    // - 2026-03-16: Reason=Readonly sessions must block merges; Purpose=alert before merge requests.
+    if (!guardWrite()) {
+      return;
+    }
     if (!gridRef.current) {
       // ### ????
       // - 2026-03-14: Reason=Fix garbled literal; Purpose=prevent unterminated string error.
@@ -792,6 +821,11 @@ const App: React.FC = () => {
       setDebugInfo('Please select a cell first');
       return;
     }
+    // ### Change Log
+    // - 2026-03-16: Reason=Readonly sessions must block formula edits; Purpose=alert before commit.
+    if (!guardWrite()) {
+      return;
+    }
     // ### ????
     // - 2026-03-11 23:05: ??=?????????????; ??=???????????????
     await gridRef.current.updateCell(selectedPosition.col, selectedPosition.row, formulaText);
@@ -815,6 +849,11 @@ const App: React.FC = () => {
       // ### Change Log
       // - 2026-03-14: Reason=Clarify missing table; Purpose=avoid misleading save message.
       setDebugInfo('Please select a table first');
+      return;
+    }
+    // ### Change Log
+    // - 2026-03-16: Reason=Readonly sessions must block save; Purpose=alert before saving.
+    if (!guardWrite()) {
       return;
     }
     try {
@@ -1069,6 +1108,12 @@ const App: React.FC = () => {
         onCommit={handleFormulaCommit}
         onRefresh={handleToolbarRefresh}
         canRefresh={Boolean(currentTable)}
+        // ### Change Log
+        // - 2026-03-16: Reason=Readonly sessions must block edits; Purpose=disable formula input.
+        canWrite={writeGuardState.canWrite}
+        // ### Change Log
+        // - 2026-03-16: Reason=Write attempts should alert; Purpose=route guard into formula bar.
+        onWriteAttempt={guardWrite}
       />
 
       <main className="grid-stage">
@@ -1083,7 +1128,9 @@ const App: React.FC = () => {
               ref={gridRef}
               sessionId={sessionId}
               tableName={currentTable}
-              readOnly={isReadOnly}
+              // ### Change Log
+              // - 2026-03-16: Reason=Missing session id should lock edits; Purpose=align with guard.
+              readOnly={isWriteLocked}
               onSessionChange={(nextSessionId) => {
                 setSessionId(nextSessionId);
                 setIsReadOnly(Boolean(defaultSessionId && nextSessionId === defaultSessionId));

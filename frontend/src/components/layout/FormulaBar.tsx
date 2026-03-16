@@ -1,7 +1,8 @@
 // ### Change Log
 // - 2026-03-15: Reason=Always-on tips need memoized selection; Purpose=avoid redundant recompute
 // - 2026-03-15: Reason=Add collapsible tips state; Purpose=track expanded rows
-import React, { useMemo, useState } from "react";
+// - 2026-03-16: Reason=Readonly guard needs focus reset; Purpose=useEffect for locked input.
+import React, { useMemo, useState, useEffect } from "react";
 import ReactDOM from "react-dom";
 import { useFormulaLogic } from "../../hooks/useFormulaLogic";
 // ### Change Log
@@ -26,6 +27,12 @@ interface FormulaBarProps {
     onCommit?: () => void;
     onRefresh?: () => void;
     canRefresh?: boolean;
+    // ### Change Log
+    // - 2026-03-16: Reason=Readonly sessions must block edits; Purpose=disable formula input.
+    canWrite?: boolean;
+    // ### Change Log
+    // - 2026-03-16: Reason=Write attempts should alert; Purpose=invoke guard from formula bar.
+    onWriteAttempt?: () => boolean;
 }
 
 export const FormulaBar: React.FC<FormulaBarProps> = ({
@@ -34,7 +41,11 @@ export const FormulaBar: React.FC<FormulaBarProps> = ({
     onChange,
     onCommit,
     onRefresh,
-    canRefresh = false
+    canRefresh = false,
+    // ### Change Log
+    // - 2026-03-16: Reason=Default to writable; Purpose=avoid blocking when prop missing.
+    canWrite = true,
+    onWriteAttempt
 }) => {
     const {
         text,
@@ -68,6 +79,22 @@ export const FormulaBar: React.FC<FormulaBarProps> = ({
     // ### Change Log
     // - 2026-03-15: Reason=Tips should gate by focus; Purpose=avoid showing on selection
     const [isFocused, setIsFocused] = useState(false);
+    // ### Change Log
+    // - 2026-03-16: Reason=Readonly sessions must block edits; Purpose=centralize input lock flag.
+    const canWriteInput = Boolean(canWrite);
+    // ### Change Log
+    // - 2026-03-16: Reason=Write attempts should alert; Purpose=shared guard for input events.
+    const guardWriteAttempt = () => {
+        if (canWriteInput) return true;
+        return Boolean(onWriteAttempt?.());
+    };
+    // ### Change Log
+    // - 2026-03-16: Reason=Readonly should not keep tips open; Purpose=hide when input locked.
+    useEffect(() => {
+        if (!canWriteInput && isFocused) {
+            setIsFocused(false);
+        }
+    }, [canWriteInput, isFocused]);
     // ### Change Log
     // - 2026-03-15: Reason=Tips should only show on '=' or fx while focused; Purpose=match popup requirement
     const shouldShowTips = useMemo(() => {
@@ -127,11 +154,36 @@ export const FormulaBar: React.FC<FormulaBarProps> = ({
                 ref={inputRef}
                 type="text"
                 value={text}
-                onChange={handleChange}
-                onKeyDown={handleKeyDown}
+                // ### Change Log
+                // - 2026-03-16: Reason=Readonly sessions must block edits; Purpose=prevent typing.
+                readOnly={!canWriteInput}
+                // ### Change Log
+                // - 2026-03-16: Reason=Readonly sessions must alert on write intent; Purpose=guard change.
+                onChange={(event) => {
+                    if (!canWriteInput) {
+                        guardWriteAttempt();
+                        return;
+                    }
+                    handleChange(event);
+                }}
+                // ### Change Log
+                // - 2026-03-16: Reason=Readonly sessions must alert on write intent; Purpose=guard keydown.
+                onKeyDown={(event) => {
+                    if (!canWriteInput) {
+                        guardWriteAttempt();
+                        event.preventDefault();
+                        return;
+                    }
+                    handleKeyDown(event);
+                }}
                 onFocus={() => {
                     // ### Change Log
                     // - 2026-03-15: Reason=Only show tips while editing; Purpose=mark focus entry
+                    if (!canWriteInput) {
+                        guardWriteAttempt();
+                        inputRef.current?.blur();
+                        return;
+                    }
                     setIsFocused(true);
                 }}
                 onBlur={() => {

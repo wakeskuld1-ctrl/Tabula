@@ -62,6 +62,9 @@ import { buildFormulaFailureNotice } from "../utils/buildFormulaFailureNotice";
 // ### Change Log
 // - 2026-03-15: Reason=API route alignment; Purpose=reuse GridAPI for style range updates
 import { fetchGridData, fetchFilterValues, updateCell, batchUpdateCells, updateStyleRange } from "../utils/GridAPI";
+// ### Change Log
+// - 2026-03-16: Reason=Readonly sessions must block writes; Purpose=shared guard logic + alerts.
+import { guardWriteAction } from "../utils/sessionWriteGuard";
 
 const buildFormulaKey = (col: number, row: number) => `${row},${col}`;
 const FILTER_PAGE_SIZE = 200;
@@ -367,6 +370,15 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
   // ### 变更记录
   // - 2026-03-14: 原因=session_id 会导致后端报错；目的=统一归一化处理
   const normalizedSessionId = sessionId?.trim() ? sessionId : undefined;
+  // ### Change Log
+  // - 2026-03-16: Reason=Readonly or missing session must block writes; Purpose=centralize alert guard.
+  const guardWrite = useCallback(() => {
+    return guardWriteAction({
+      sessionId: normalizedSessionId,
+      isReadOnly,
+      onBlocked: (message) => alert(message),
+    });
+  }, [normalizedSessionId, isReadOnly]);
   // Cache: Map<pageIndex, PageData>
   const cache = useRef<Map<number, PageData>>(new Map());
   const fetching = useRef<Set<number>>(new Set());
@@ -609,8 +621,9 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
     const executeUndo = useCallback(async () => {
         // ### 变更记录
 // - 2026-03-14: 原因=默认会话只读；目禁止撤销写操作
-        if (isReadOnly) {
-            alert('当前会话为只读，无法撤销');
+        // ### Change Log
+        // - 2026-03-16: Reason=Readonly or missing session must block undo; Purpose=alert before undo.
+        if (!guardWrite()) {
             return;
         }
         const action = undoStack.current.pop();
@@ -707,8 +720,9 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
     const executeRedo = useCallback(async () => {
         // ### 变更记录
 // - 2026-03-14: 原因=默认会话只读；目禁止重做写操作
-        if (isReadOnly) {
-            alert('当前会话为只读，无法重做');
+        // ### Change Log
+        // - 2026-03-16: Reason=Readonly or missing session must block redo; Purpose=alert before redo.
+        if (!guardWrite()) {
             return;
         }
         const action = redoStack.current.pop();
@@ -1021,8 +1035,9 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
   const applySelectionStyle = useCallback(async (style: any) => {
       // ### 变更记录
       // - 2026-03-14: 原因=默认会话只读；目阻止样式修改入口
-      if (isReadOnly) {
-          alert('当前会话为只读，无法修改样式');
+      // ### Change Log
+      // - 2026-03-16: Reason=Readonly or missing session must block style writes; Purpose=alert early.
+      if (!guardWrite()) {
           return;
       }
       // **[2026-02-16]** 变更原因：无选区时直接返回
@@ -1101,8 +1116,9 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
     updateStyle: async (col: number, row: number, style: any) => {
         // ### 变更记录
         // - 2026-03-14: 原因=默认会话只读；目阻止粘贴写入
-        if (isReadOnly) {
-            alert('当前会话为只读，无法修改样式');
+        // ### Change Log
+        // - 2026-03-16: Reason=Readonly or missing session must block style writes; Purpose=alert early.
+        if (!guardWrite()) {
             return;
         }
         try {
@@ -1151,8 +1167,9 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
     mergeSelection: async () => {
         // ### 变更记录
         // - 2026-03-14: 原因=默认会话只读；目阻止粘贴写入
-        if (isReadOnly) {
-            alert('当前会话为只读，无法合并');
+        // ### Change Log
+        // - 2026-03-16: Reason=Readonly or missing session must block merges; Purpose=alert early.
+        if (!guardWrite()) {
             return;
         }
         if (!selectionRef.current || !selectionRef.current.current) return;
@@ -1575,8 +1592,9 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
   const onPaste = useCallback((target: Item, values: readonly (readonly string[])[]): boolean => {
       // ### 变更记录
       // - 2026-03-14: 原因=默认会话只读；目阻止粘贴写入
-      if (isReadOnly) {
-          alert('当前会话为只读，无法粘贴');
+      // ### Change Log
+      // - 2026-03-16: Reason=Readonly or missing session must block paste; Purpose=alert early.
+      if (!guardWrite()) {
           return false;
       }
       if (!pasteEnvLogged.current) {
@@ -2166,8 +2184,9 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
     (newValues: readonly EditListItem[]) => {
       // ### 变更记录
       // - 2026-03-14: 原因=默认会话只读；目阻止批量编辑入口
-      if (isReadOnly) {
-        alert('当前会话为只读，无法批量编辑');
+      // ### Change Log
+      // - 2026-03-16: Reason=Readonly or missing session must block batch edits; Purpose=alert early.
+      if (!guardWrite()) {
         return false;
       }
       if (!newValues || newValues.length === 0) return true;
@@ -2572,8 +2591,9 @@ export const GlideGrid = React.forwardRef((props: GlideGridProps, ref: React.Ref
     async (cell: Item, newValue: GridCell) => {
       // ### 变更记录
       // - 2026-03-14: 原因=默认会话只读；目阻止单元格编辑入口
-      if (isReadOnly) {
-        alert('当前会话为只读，无法编辑');
+      // ### Change Log
+      // - 2026-03-16: Reason=Readonly or missing session must block edits; Purpose=alert early.
+      if (!guardWrite()) {
         return;
       }
       if (newValue.kind !== GridCellKind.Text) return;
