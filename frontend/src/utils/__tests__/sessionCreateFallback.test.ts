@@ -4,7 +4,7 @@
 import { describe, it, expect } from "vitest";
 // ### Change Log
 // - 2026-03-16: Reason=Fallback parser will live in utils; Purpose=decouple App from parsing rules.
-import { resolveCreatedSessionId } from "../sessionCreateFallback";
+import { resolveCreatedSessionId, buildCreateSessionPayload } from "../sessionCreateFallback";
 
 // ### Change Log
 // - 2026-03-16: Reason=Backend response may omit session_id; Purpose=ensure fallback works.
@@ -40,5 +40,23 @@ describe("resolveCreatedSessionId", () => {
     // ### Change Log
     // - 2026-03-16: Reason=Matching name should win; Purpose=correctly select Sheet1.
     expect(id).toBe("a1");
+  });
+
+  // ### Change Log
+  // - 2026-03-16: Reason=Backend may reject null from_session_id; Purpose=omit when empty.
+  it("omits from_session_id when empty", () => {
+    // ### Change Log
+    // - 2026-03-16: Reason=Payload should stay minimal; Purpose=avoid sending null fields.
+    const payload = buildCreateSessionPayload({
+      tableName: "t",
+      sessionName: "Sheet1",
+      fromSessionId: "",
+    });
+    // ### Change Log
+    // - 2026-03-16: Reason=Empty from_session_id should be removed; Purpose=stabilize create_session.
+    expect(payload).toEqual({
+      table_name: "t",
+      session_name: "Sheet1",
+    });
   });
 });

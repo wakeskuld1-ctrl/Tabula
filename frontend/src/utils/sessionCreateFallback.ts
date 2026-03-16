@@ -30,3 +30,27 @@ export function resolveCreatedSessionId(input: {
   // - 2026-03-16: Reason=No match should return empty; Purpose=let caller handle error.
   return matched?.sessionId || "";
 }
+
+// ### Change Log
+// - 2026-03-16: Reason=Empty from_session_id should be omitted; Purpose=avoid backend rejects.
+// - 2026-03-16: Reason=Keep payload construction consistent; Purpose=single source for create_session body.
+export function buildCreateSessionPayload(input: {
+  tableName: string;
+  sessionName: string;
+  fromSessionId?: string;
+}) {
+  // ### Change Log
+  // - 2026-03-16: Reason=Always include required fields; Purpose=keep backend contract stable.
+  const payload: { table_name: string; session_name: string; from_session_id?: string } = {
+    table_name: input.tableName,
+    session_name: input.sessionName,
+  };
+  // ### Change Log
+  // - 2026-03-16: Reason=Null/empty from_session_id can break backend; Purpose=omit when missing.
+  if (input.fromSessionId && input.fromSessionId.trim().length > 0) {
+    payload.from_session_id = input.fromSessionId;
+  }
+  // ### Change Log
+  // - 2026-03-16: Reason=Callers need final body; Purpose=return sanitized payload.
+  return payload;
+}

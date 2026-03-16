@@ -23,6 +23,9 @@ import { ensureColumns } from './utils/GridAPI';
 // - 2026-03-15: Reason=Hide invalid system tables; Purpose=avoid sys_metadata selection errors
 import { filterUserVisibleTables } from './utils/tableList';
 // ### Change Log
+// - 2026-03-16: Reason=Create session fallback; Purpose=avoid Sheet1 skip on missing session_id.
+import { resolveCreatedSessionId, buildCreateSessionPayload } from './utils/sessionCreateFallback';
+// ### Change Log
 // - 2026-03-16: Reason=Readonly sessions must block writes; Purpose=centralize guard logic + alerts.
 import { getWriteGuardState, guardWriteAction } from './utils/sessionWriteGuard';
 
@@ -896,16 +899,17 @@ const App: React.FC = () => {
     const nextSandboxName = buildNextSheetName(sessions);
     try {
       setLoading(true);
+      // ### Change Log
+      // - 2026-03-16: Reason=Empty from_session_id should be omitted; Purpose=avoid backend rejects.
+      const createPayload = buildCreateSessionPayload({
+        tableName: currentTable,
+        sessionName: nextSandboxName,
+        fromSessionId: sessionId,
+      });
       const createRes = await fetch('/api/create_session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          table_name: currentTable,
-          session_name: nextSandboxName,
-          // ### 鍙樻洿璁板綍
-          // - 2026-03-14: 鍘熷洜=鍚庣瀛楁涓?from_session_id锛涚洰鐨?閬垮厤 base_session_id 瀵艰嚧鍒嗘敮缂哄け銆?
-          from_session_id: sessionId || null
-        })
+        body: JSON.stringify(createPayload)
       });
       if (!createRes.ok) {
         throw new Error(`create session failed: ${createRes.status}`);
@@ -914,10 +918,34 @@ const App: React.FC = () => {
       if (!parsed.ok) {
         throw new Error(parsed.reason);
       }
-      const nextSessionId =
-        parsed.data?.session?.session_id
-        || parsed.data?.session_id
-        || '';
+      // ### Change Log
+      // - 2026-03-16: Reason=Backend response may omit session_id; Purpose=resolve via fallback.
+      let nextSessionId = resolveCreatedSessionId({
+        parsed,
+        sessions,
+        expectedName: nextSandboxName,
+      });
+      // ### Change Log
+      // - 2026-03-16: Reason=Missing session_id can skip Sheet1; Purpose=retry with sessions list.
+      if (!nextSessionId) {
+        setDebugInfo('Create session response missing session_id, retrying sessions...');
+        const fallbackRes = await fetch(`/api/sessions?table_name=${encodeURIComponent(currentTable)}`);
+        if (fallbackRes.ok) {
+          const fallbackParsed = await parseJsonSafely(fallbackRes);
+          if (fallbackParsed.ok) {
+            const payload = fallbackParsed.data ?? {};
+            const rawSessions = Array.isArray(payload.sessions)
+              ? payload.sessions
+              : (Array.isArray(payload.data?.sessions) ? payload.data.sessions : []);
+            const normalizedFallback = normalizeSessions(rawSessions);
+            nextSessionId = resolveCreatedSessionId({
+              parsed: { data: {} },
+              sessions: normalizedFallback,
+              expectedName: nextSandboxName,
+            });
+          }
+        }
+      }
       if (!nextSessionId) {
         throw new Error(parsed.data?.message || 'invalid create_session response');
       }
